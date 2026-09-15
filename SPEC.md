@@ -216,12 +216,28 @@ it still never writes into a harness's own store.
   new thread. Given a non-absolute `root`, then the request is refused before anything is
   created.
 
-**P0.9 — Local-only trust boundary.**
-Bind `127.0.0.1` by default; answer only the tool's own page (Host/Origin same-origin check).
-State-changing routes (invoke, new-project) are understood as a widened write surface and
-documented as such.
-- *Acceptance:* Given a cross-origin request to a state-changing route, then it is rejected.
-  Given the default config, then the server is not reachable off-host.
+**P0.9 — Layered trust boundary (localhost + authenticated exposure).**
+Bind `127.0.0.1` by default and answer only the tool's own page (Host + Origin same-origin
+check — stops DNS rebinding and cross-site CSRF). This same-origin gate is retained as
+defense-in-depth. Because the write surface has grown to real agent invocation and
+client-named folder creation, **and because serving beyond localhost is a decided goal** (see
+§Timeline Phase 3), same-origin alone is no longer sufficient once the server is reachable
+off-machine: a legitimately-served remote page and an attacker's request share the same origin.
+
+The decided direction (full rationale in **[`ADR-001-trust-model.md`](ADR-001-trust-model.md)**):
+a shared-secret bearer token (`HABITAT_CONTROL_TOKEN`) is required on every state-changing
+route *in addition to* the same-origin check, and is **mandatory (fail closed)** whenever the
+server binds off-loopback. The high-stakes `confirmed: true` flag is kept as reflexive-click
+protection for the already-authenticated user — the threat bar deliberately excludes a
+compromised local browser, so out-of-band confirmation is explicitly not built.
+- *Acceptance:*
+  - Given the default (loopback, no token), then behaviour is unchanged: reachable only on-host,
+    a cross-origin state-changing request is rejected, no token needed — zero-config preserved.
+  - Given the server bound off-loopback with no `HABITAT_CONTROL_TOKEN` set, then it refuses to
+    enable state-changing routes (fails closed) rather than serving them unauthenticated.
+  - Given the server exposed with a token set, when a write request arrives without the token,
+    then it is rejected even if same-origin; with the token, it proceeds.
+  - The token never appears in a URL or query string.
 
 ### Nice-to-Have (P1) — real improvements, core works without them
 
@@ -245,15 +261,18 @@ documented as such.
 
 - **P2.1 — Real deployment topology.** Control-plane as its own in-cluster Deployment/Service,
   Cloudflare Tunnel (or Tailscale Funnel) for browser exposure, Bedrock IAM secret as a K8s
-  Secret. Revisiting the Host/Origin check for a tunneled public hostname is part of this.
-  (Architecture doc §5; still just the doc.)
+  Secret. The trust-model direction for a tunneled public hostname is now decided — bearer
+  token, fail-closed, plus edge auth ([`ADR-001`](ADR-001-trust-model.md)) — and is a hard
+  prerequisite for this item. (Architecture doc §5; still just the doc.)
 - **P2.2 — Azure AI Foundry & GCP Vertex adapters.** Same contract; existed in an earlier cut,
   deferred to keep v1 scope at AWS + K8s.
 - **P2.3 — Multi-process / team operation.** Would require replacing in-memory pub/sub and the
   single-connection SQLite assumption. Explicitly not now; the assumption is load-bearing and
   documented so it isn't tripped over.
-- **P2.4 — Auth in front of state-changing routes.** A shared-secret/bearer check, or moving
-  high-stakes confirmation out of a browser-controlled body flag — pending the trust-model ADR.
+- **P2.4 — Auth in front of state-changing routes.** *Direction decided
+  ([`ADR-001`](ADR-001-trust-model.md)):* shared-secret bearer token, mandatory once bound
+  off-loopback; keep the `confirmed:true` flag; do not move confirmation out of band. This is
+  now an implementation item (see ADR action items), not an open one.
 
 ---
 
@@ -292,11 +311,12 @@ assertion for the invariant and clean-boot targets; git/adapter count for covera
 
 Genuinely unresolved — not answerable from current context.
 
-- **[stakeholder/security] Trust-model direction.** Leave as-is + document louder, add a
-  bearer/shared-secret in front of state-changing routes, or move high-stakes confirmation off
-  a browser-controlled body flag? *Blocking* for P2.1 (any tunneled/exposed deployment);
-  non-blocking for localhost v1. (See [`BACKLOG.md`](bot-views/BACKLOG.md) "Write the
-  trust-model ADR.")
+- **[security] Trust-model direction — RESOLVED** in [`ADR-001`](ADR-001-trust-model.md):
+  shared-secret bearer token on state-changing routes, mandatory (fail closed) once bound
+  off-loopback; keep the `confirmed:true` flag as reflexive-click protection; out-of-band
+  confirmation explicitly not built. Remaining open sub-question: *token lifecycle* — how the
+  token is rotated and, for a network device, delivered (one-time copy vs. QR vs. edge auth
+  only). Non-blocking for the localhost path; resolve before P2.1 ships.
 - **[engineering] Nested git histories under `bot-views/`.** Document loudly, absorb via
   subtree/filter-repo, or delete the inner `.git`? *Blocking-ish* for contributors (risk of
   committing to the wrong remote). Low effort, undecided direction.
@@ -326,17 +346,20 @@ log, create-a-hex-space. Remaining polish here is P1.1–P1.3 (astronaut reacts 
 better confirm UX, richer result surface).
 
 **Phase 2 — Hardening & breadth.** Centralized config (P1.6), resolve nested git histories,
-**write the trust-model ADR** (gates anything exposed beyond localhost), more harnesses (P1.4),
-new-space harness choice (P1.5).
+**implement the trust-model decision** ([`ADR-001`](ADR-001-trust-model.md) action items —
+bearer token, fail-closed off-loopback; gates anything exposed beyond localhost), more
+harnesses (P1.4), new-space harness choice (P1.5).
 
 **Phase 3 — Beyond localhost (design-toward).** Real deployment topology (P2.1), Azure/GCP
 adapters (P2.2), and only if genuinely needed, the multi-process rework (P2.3). Each of these
 is explicitly *not* pulled forward; the localhost single-process assumptions are load-bearing
 until a concrete reason retires them.
 
-**Hard dependency:** Phase 3's exposure work cannot start before the trust-model ADR (Phase 2)
-lands — the Host/Origin defense was sized for a read-only localhost viewer, and the write
-surface has since grown to real invocation and folder creation.
+**Hard dependency:** Phase 3's exposure work cannot start before the trust-model decision is
+*implemented* (Phase 2) — the direction is set ([`ADR-001`](ADR-001-trust-model.md)), but the
+Host/Origin defense was sized for a read-only localhost viewer, and the write surface has since
+grown to real invocation and folder creation, so the bearer-token/fail-closed work must land
+before anything is served off-machine.
 
 ---
 
