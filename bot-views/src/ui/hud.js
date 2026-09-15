@@ -62,6 +62,9 @@ export class Hud {
     this.visible = true
     this._last = {}
     this.hiddenOpen = false
+    // Latest invocation state per thread id: { status, output, error }. Kept here so the
+    // reply survives re-selecting the astronaut — it is not a transient toast any more.
+    this._results = new Map()
 
     this.el = document.createElement('div')
     this.el.className = 'hud'
@@ -409,6 +412,7 @@ export class Hud {
     this.$('#ask-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') this._sendAsk()
     })
+    on('#btn-copy-reply', 'click', () => this._copyReply())
     on('#btn-deselect', 'click', () => this.actions.select?.(null))
     on('#btn-new-session', 'click', () => this.actions.newConversation?.())
     on('#btn-reveal', 'click', () => this.actions.revealProject?.())
@@ -718,6 +722,8 @@ export class Hud {
     // Only agents an adapter has actually wired invoke up for get the ask box — everything
     // else keeps the original read-only card exactly as it was.
     this.$('.thread-pop .ask').hidden = !thread.canInvoke
+    // Show whatever this thread's last invocation left behind, if anything.
+    this._renderResult()
   }
 
   /**
@@ -854,6 +860,121 @@ export class Hud {
       el.classList.add('leaving')
       setTimeout(() => el.remove(), 260)
     }, 3600)
+  }
+
+  /**
+   * A branded, focus-trapped confirmation, resolving true (confirm) or false (cancel). The
+   * replacement for window.confirm() on the high-stakes invoke path — it can echo exactly
+   * what is about to be sent, and for a `danger` dialog Enter does NOT confirm: a high-stakes
+   * action must be reached for on purpose, so only a click (or Tab-to-it) settles it true.
+   */
+  confirm({ title = 'Are you sure?', message = '', prompt = '', danger = false, okLabel = 'Confirm', cancelLabel = 'Cancel' } = {}) {
+    const dlg = this.$('.dialog')
+    this.$('.dialog .dtitle').textContent = title
+    this.$('.dialog .dmsg').textContent = message
+    this.$('.dialog .dmsg').hidden = !message
+    const echo = this.$('.dialog .prompt-echo')
+    echo.textContent = prompt || ''
+    echo.hidden = !prompt
+    const ok = this.$('#dlg-ok')
+    const cancel = this.$('#dlg-cancel')
+    ok.textContent = okLabel
+    cancel.textContent = cancelLabel
+    ok.classList.toggle('danger', danger)
+    ok.classList.toggle('primary', !danger)
+
+    return new Promise((resolve) => {
+      const prevFocus = document.activeElement
+      const finish = (val) => {
+        dlg.classList.remove('open')
+        window.removeEventListener('keydown', onKey, true)
+        ok.removeEventListener('click', onOk)
+        cancel.removeEventListener('click', onCancel)
+        dlg.removeEventListener('mousedown', onBackdrop)
+        if (prevFocus && prevFocus.focus) prevFocus.focus()
+        resolve(val)
+      }
+      const onOk = () => finish(true)
+      const onCancel = () => finish(false)
+      const onBackdrop = (e) => {
+        if (e.target === dlg) finish(false)
+      }
+      const onKey = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          finish(false)
+        } else if (e.key === 'Enter' && !danger) {
+          e.preventDefault()
+          e.stopPropagation()
+          finish(true)
+        } else if (e.key === 'Tab') {
+          // Two focusables only — keep Tab inside the dialog rather than escaping to the HUD.
+          e.preventDefault()
+          const order = [cancel, ok]
+          const i = order.indexOf(document.activeElement)
+          order[(i + (e.shiftKey ? order.length - 1 : 1)) % order.length].focus()
+        }
+      }
+      ok.addEventListener('click', onOk)
+      cancel.addEventListener('click', onCancel)
+      dlg.addEventListener('mousedown', onBackdrop)
+      window.addEventListener('keydown', onKey, true)
+      dlg.classList.add('open')
+      // Default to the safe choice — for a danger dialog that is the one a stray Enter/space
+      // would otherwise fire.
+      ;(danger ? cancel : ok).focus()
+    })
+  }
+
+  /**
+   * Record (and, if it is the selected thread, show) the latest invocation state for a
+   * thread. `state` is { status, output, error } or null to clear it.
+   */
+  setResult(threadId, state) {
+    if (!threadId) return
+    if (state == null) this._results.delete(threadId)
+    else this._results.set(threadId, state)
+    if (this.selected?.thread?.id === threadId) this._renderResult()
+  }
+
+  /** Paint the selected thread's invocation reply into the card, or hide the block. */
+  _renderResult() {
+    const box = this.$('.thread-pop .result')
+    const state = this.selected ? this._results.get(this.selected.thread.id) : null
+    if (!state) {
+      box.hidden = true
+      return
+    }
+    box.hidden = false
+    const STATUS_TEXT = { queued: 'queued', running: 'running', done: 'done', error: 'error' }
+    const status = this.$('.thread-pop .rstatus')
+    status.className = `rstatus ${state.status}`
+    status.textContent = STATUS_TEXT[state.status] ?? state.status
+    const body = this.$('.thread-pop .result-body')
+    const waiting = (state.status === 'queued' || state.status === 'running') && !state.output
+    body.classList.toggle('err', state.status === 'error')
+    body.classList.toggle('waiting', waiting)
+    if (state.status === 'error') body.textContent = state.error || 'The agent reported an error'
+    else if (waiting) body.textContent = state.status === 'queued' ? 'Queued…' : 'Working…'
+    else body.textContent = state.output || (state.status === 'done' ? 'Done — no output' : '…')
+    // Copy only offered once there is something worth copying.
+    this.$('#btn-copy-reply').hidden = !state.output
+    // Follow the stream to the bottom as chunks land.
+    body.scrollTop = body.scrollHeight
+    // The card grew or shrank; refresh the size placeCard() uses so it stays beside its
+    // astronaut rather than half over it.
+    const card = this.$('.thread-pop')
+    this._cardSize = { w: card.offsetWidth, h: card.offsetHeight }
+  }
+
+  _copyReply() {
+    const state = this.selected ? this._results.get(this.selected.thread.id) : null
+    const text = state?.output || state?.error
+    if (!text) return
+    Promise.resolve(navigator.clipboard?.writeText(text))
+      .then(() => this.toast('Reply copied'))
+      .catch(() => this.toast('Could not copy', 'err'))
   }
 
   // ── visibility ──────────────────────────────────────────────────────────────────────
@@ -1101,11 +1222,31 @@ const TEMPLATE = `
     <input type="text" id="ask-input" placeholder="Ask this agent…" maxlength="2000" />
     <button class="btn primary" id="btn-ask" title="Send this to the agent">${ICON.send}</button>
   </div>
+  <div class="result" hidden>
+    <div class="result-head">
+      <span class="rlabel">Reply</span>
+      <span class="rstatus"></span>
+      <button class="btn icon ghost btn-copy-reply" id="btn-copy-reply" title="Copy the reply" hidden>${ICON.copy}</button>
+    </div>
+    <div class="result-body" aria-live="polite"></div>
+  </div>
 </div>
 
-<div class="toasts"></div>
+<div class="toasts" aria-live="polite"></div>
 <div class="fps panel"></div>
 <div class="hint-pill panel"></div>
+
+<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+  <div class="box panel">
+    <h2 class="dtitle" id="dlg-title"></h2>
+    <p class="dmsg"></p>
+    <div class="prompt-echo" hidden></div>
+    <div class="actions">
+      <button class="btn" id="dlg-cancel">Cancel</button>
+      <button class="btn primary" id="dlg-ok">Confirm</button>
+    </div>
+  </div>
+</div>
 
 <div class="help">
   <div class="sheet panel">

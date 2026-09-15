@@ -157,6 +157,26 @@ body {
   color: #ffb193;
 }
 
+/* The primary action surface had no visible keyboard focus — inputs did, buttons didn't.
+   A keyboard user tabbing the card or a dialog could not see where they were. */
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Destructive / high-stakes confirmation. Read as a warning, not the calm accent — this is
+   the one button whose whole job is to make you look before you leap. */
+.btn.danger {
+  background: var(--red);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn.danger:hover {
+  background: #d65f5f;
+}
+
 .btn svg {
   width: 16px;
   height: 16px;
@@ -690,6 +710,121 @@ body {
   border-radius: 3px;
   background: var(--green);
   transition: width 400ms ease;
+}
+
+/* ── the agent's reply, streamed in place ───────────────────────────────────────────
+   The invoke box used to fire-and-forget: the answer was sliced to 140 chars into a toast
+   and lost. This is where a live invocation actually reads back — it fills as `chunk`
+   events arrive, survives re-selecting the thread, and can be copied whole. */
+.thread-pop .result {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.thread-pop .result[hidden] {
+  display: none;
+}
+
+.thread-pop .result-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+
+.thread-pop .result-head .rlabel {
+  flex: 1;
+}
+
+/* Where the invocation is: queued / running / done / error. Same vocabulary as the
+   astronaut badges, in words, next to the text it describes. */
+.thread-pop .rstatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.thread-pop .rstatus::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.thread-pop .rstatus.queued { color: var(--muted); }
+.thread-pop .rstatus.running { color: #7fd39a; }
+.thread-pop .rstatus.running::before { animation: pulse 1.4s ease-in-out infinite; }
+.thread-pop .rstatus.done { color: #8fb4ee; }
+.thread-pop .rstatus.error { color: #e88b8b; }
+
+.thread-pop .result-head .btn-copy-reply {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dim);
+}
+
+.thread-pop .result-head .btn-copy-reply:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.thread-pop .result-head .btn-copy-reply[hidden] {
+  display: none;
+}
+
+.thread-pop .result-head .btn-copy-reply svg {
+  width: 13px;
+  height: 13px;
+}
+
+.thread-pop .result-body {
+  max-height: 184px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 9px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+.thread-pop .result-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.thread-pop .result-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+}
+
+.thread-pop .result-body.err {
+  color: #ffb4b4;
+}
+
+.thread-pop .result-body.waiting {
+  color: var(--dim);
+  font-style: italic;
 }
 
 /* ── the sidebar: brand, counts, repos, and the repo you drilled into ─────────────── */
@@ -1402,6 +1537,81 @@ kbd {
   font-size: 11px;
   font-weight: 700;
   flex: none;
+}
+
+/* ── confirmation dialog ─────────────────────────────────────────────────────────────
+   The branded stand-in for window.confirm(). One reusable overlay: a title, a message, an
+   optional echo of exactly what is about to be sent, and two buttons. Focus-trapped, Escape
+   cancels, and for a high-stakes (danger) dialog Enter deliberately does NOT confirm — the
+   whole point is to make you reach for the button. */
+.dialog {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  background: rgba(6, 7, 11, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: auto;
+  z-index: 40;
+}
+
+.dialog.open {
+  display: grid;
+}
+
+.dialog .box {
+  width: min(440px, calc(100vw - 40px));
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.dialog .box .dtitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.dialog .box .dmsg {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dialog .box .prompt-echo {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--accent);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.45;
+  max-height: 132px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.dialog .box .prompt-echo[hidden] {
+  display: none;
+}
+
+.dialog .box .actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.dialog .box .actions .btn {
+  height: 36px;
+  min-width: 88px;
 }
 
 /* ── hint pill ───────────────────────────────────────────────────────────────────── */

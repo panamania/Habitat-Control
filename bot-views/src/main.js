@@ -300,29 +300,62 @@ const actions = {
     const thread = threads.find((t) => t.id === selectedId)
     if (!thread) return
 
+    // The reply now streams into the card's result panel and survives re-selecting the
+    // thread, rather than landing once as a truncated toast. One mutable state object per
+    // send, handed to the HUD on every event.
     const watch = (invocationId) => {
+      const state = { status: 'queued', output: '', error: null }
+      hud.setResult(thread.id, state)
       subscribeInvocation(invocationId, (event) => {
-        // 'snapshot' carries the same status/output/error a live 'status'/'done'/'error'
-        // event would, for a subscriber that connects after the invocation already moved
-        // on — a fast agent can finish before the SSE request even lands. Either shape is
-        // handled the same way here.
-        const status = event.status ?? (event.type === 'done' ? 'done' : event.type === 'error' ? 'error' : null)
-        if (status === 'done') hud.toast(event.output ? String(event.output).slice(0, 140) : 'Done')
-        else if (status === 'error') hud.toast(event.error || 'That agent reported an error', 'err')
+        switch (event.type) {
+          case 'chunk':
+            state.output += event.text ?? ''
+            if (state.status === 'queued') state.status = 'running'
+            break
+          case 'status':
+            if (event.status) state.status = event.status
+            break
+          // A subscriber that connects after the invocation already moved on (a fast agent
+          // can finish before the SSE request even lands) gets the whole state at once here.
+          case 'snapshot':
+            if (event.status) state.status = event.status
+            if (event.output) state.output = event.output
+            if (event.error) state.error = event.error
+            break
+          case 'done':
+            state.status = 'done'
+            if (event.output) state.output = event.output
+            break
+          case 'error':
+            state.status = 'error'
+            state.error = event.error || 'That agent reported an error'
+            break
+        }
+        hud.setResult(thread.id, state)
       })
     }
 
+    // askAgent() settles on the server's 202 (queued), not the agent's reply — so the ask
+    // box frees up immediately; the answer arrives later over the stream, into the panel.
     const send = async (confirmed) => {
       const { invocationId } = await askAgent(thread, prompt, confirmed)
-      hud.toast('Sent — waiting on a reply')
       watch(invocationId)
     }
 
     try {
       await send(false)
     } catch (err) {
+      // A high-stakes zone answers 409 asking to be told again on purpose — a branded,
+      // focus-trapped confirm that echoes exactly what is about to be sent, not window.confirm.
       if (err.requiresConfirmation) {
-        if (!window.confirm(`${err.zoneId} is marked high-stakes — send this anyway?`)) return
+        const ok = await hud.confirm({
+          title: 'High-stakes zone',
+          message: `${err.zoneId} is marked high-stakes. Send this prompt to the agent anyway?`,
+          prompt,
+          danger: true,
+          okLabel: 'Send anyway',
+        })
+        if (!ok) return
         try {
           await send(true)
         } catch (err2) {
