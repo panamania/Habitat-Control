@@ -1,7 +1,7 @@
 # ADR-001: Trust model for state-changing routes when exposed beyond localhost
 
-**Status:** Proposed
-**Date:** 2026-09-15
+**Status:** Accepted
+**Date:** 2026-09-15 (accepted 2026-09-16)
 **Deciders:** Maintainer (panamania/Habitat-Control)
 **Resolves:** [`bot-views/BACKLOG.md`](bot-views/BACKLOG.md) → "Write the trust-model ADR"
 **Related:** [`SPEC.md`](SPEC.md) §Requirements P0.9 / P2.1 · [`HABITAT_CONTROL_ARCHITECTURE.md`](HABITAT_CONTROL_ARCHITECTURE.md) §5

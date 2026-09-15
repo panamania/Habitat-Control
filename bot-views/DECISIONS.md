@@ -96,3 +96,19 @@ That means a PR can be closed unmerged and still be the reason something shipped
 happens the commit says so and the contributor is credited by name. It is a worse deal for
 contributors than merging their commit, and it is written down here so nobody has to discover
 it from a closed tab.
+
+## High-stakes confirmation stays a browser flag; the remote defense is a token
+
+The `confirmed: true` gate on a high-stakes invocation is a flag the page sets, and it stays
+one. Its job is to stop a *reflexive click* by the person at the keyboard, and for that it is
+enough. It is deliberately **not** hardened against a malicious or compromised page in the
+user's own browser — that page satisfies the same-origin check and could set the flag itself.
+
+Out-of-band confirmation — the server printing a one-time code the user has to echo back — was
+considered and rejected (ADR-001, Option C). It defends a threat outside the decided bar (a
+compromised local browser) at the cost of friction on every legitimate high-stakes call, and it
+does nothing for the problem that actually motivated the review: an unauthenticated *remote*
+caller once the tool is served beyond localhost. That problem is answered by a shared-secret
+bearer token on state-changing routes, mandatory once bound off-loopback — see
+[`../ADR-001-trust-model.md`](../ADR-001-trust-model.md), which is Accepted. If a PR proposes
+re-hardening the confirm step, it needs to argue with this reason, not work around it.
