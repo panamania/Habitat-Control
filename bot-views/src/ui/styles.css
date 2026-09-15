@@ -177,6 +177,14 @@ body {
   background: #d65f5f;
 }
 
+/* Disabled applies everywhere, not just in the sidebar — the ask/send button dims while a
+   prompt is in flight, and used to get only the browser default over its custom fill. */
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
 .btn svg {
   width: 16px;
   height: 16px;
@@ -1261,12 +1269,6 @@ body {
 .side .pair .btn {
   flex: 1;
   min-width: 0;
-}
-
-.side .btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-  pointer-events: none;
 }
 
 .side .threads-head {

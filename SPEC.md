@@ -250,10 +250,10 @@ compromised local browser, so out-of-band confirmation is explicitly not built.
 
 ### Nice-to-Have (P1) — real improvements, core works without them
 
-- **P1.1 — Astronaut reacts to invocation state.** Wire a live invocation's status into the
-  3D astronaut's `running`/`unread`/`done` animation, so the *astronaut* flips idle → running
-  → done, not only the thread card. (Today only the card reacts —
-  [`INTEGRATION_NOTES.md`](bot-views/INTEGRATION_NOTES.md) §4.)
+- ✅ **P1.1 — Astronaut reacts to invocation state.** *Done (Sprint 1).* A live invocation
+  flips the astronaut to `working` (⚒) between scans via `colony.setInvoking`, grows its
+  building, and updates the sidebar counts, settling back on done/error — without masking a
+  real `blocked`. The thread card reacts too (shipped earlier).
 - **P1.2 — Better-than-`window.confirm` high-stakes UX.** Replace the plain browser confirm
   with an in-world confirmation that names the zone, the action, and the stakes.
 - **P1.3 — Richer result surface.** Show an invocation's streamed output in an expandable panel

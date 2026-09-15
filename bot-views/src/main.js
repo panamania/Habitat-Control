@@ -306,6 +306,9 @@ const actions = {
     const watch = (invocationId) => {
       const state = { status: 'queued', output: '', error: null }
       hud.setResult(thread.id, state)
+      // Flip the astronaut itself to `working` for the life of the invocation, not just the
+      // card. Cleared on the terminal event below so it settles back to its scanned state.
+      colony.setInvoking(thread.id, true)
       subscribeInvocation(invocationId, (event) => {
         switch (event.type) {
           case 'chunk':
@@ -331,6 +334,7 @@ const actions = {
             state.error = event.error || 'That agent reported an error'
             break
         }
+        if (state.status === 'done' || state.status === 'error') colony.setInvoking(thread.id, false)
         hud.setResult(thread.id, state)
       })
     }
@@ -376,6 +380,9 @@ const actions = {
 }
 
 const hud = new Hud(app, settings, actions)
+// A live invocation flips an astronaut to `working` between scans; keep the sidebar counts
+// in step with it, the same setStats the scan itself calls.
+colony.onStats = (stats) => hud.setStats(stats)
 // The sidebar is permanent, so the card beside an astronaut has a wall to stay clear of.
 const sideWidth = () => (window.innerWidth <= 820 ? 0 : 334)
 hud.setSideWidth(sideWidth())

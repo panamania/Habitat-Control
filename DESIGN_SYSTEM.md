@@ -77,7 +77,7 @@ chars and lost it.
 
 ## Audit (2026-09-15)
 
-**Components reviewed:** 12 · **Score: 68/100 → 74/100** after the result-loop work below.
+**Components reviewed:** 12 · **Score: 68/100 → 78/100** after the result-loop + Sprint 1 work.
 
 The visual layer is coherent and strong; the score is held down by **missing scale tokens** and
 by components the newest flow (invocation) needed. Two of those are now built.
@@ -94,15 +94,18 @@ by components the newest flow (invocation) needed. Two of those are now built.
 ### Priority actions
 1. ✅ **Confirm dialog** — done (replaces `window.confirm`).
 2. ✅ **Streaming result panel** — done (replaces the truncated toast; `aria-live` added).
-3. ⬜ **Invocation status → astronaut** (P1.1 in [`SPEC.md`](SPEC.md)) — flip the 3D astronaut
-   idle→running→done on *your* prompt, and add a status chip; today the card's progress bar is
-   transcript size, not invocation state.
+3. ✅ **Invocation status → astronaut** (P1.1) — done (Sprint 1): a live invocation flips the
+   astronaut to `working` via `colony.setInvoking`, grows its building, and updates the counts,
+   settling back on done/error and never masking a real `blocked`. The card's result panel
+   shows the status words; a dedicated in-world status chip is not needed on top.
 4. ⬜ **Scale tokens + palette consolidation** — add spacing/type/motion scales and fold the
    duplicated state colors into `--state-*` tokens (fixes the `idle` divergence). The substrate
-   that makes future components consistent instead of eyeballed.
-5. ⬜ **Button polish** — `:focus-visible` added (a11y); still to do: hoist `:disabled` out of
-   the sidebar-only scope so it applies everywhere.
+   that makes future components consistent instead of eyeballed. *(Sprint 2)*
+5. ✅ **Button polish** — done: `:focus-visible` (a11y) and `.btn:disabled` hoisted out of the
+   sidebar-only scope so every disabled button (e.g. ask/send) dims consistently.
 
-### Fixed in this pass
+### Fixed so far
 - `.btn:focus-visible` — the primary action surface had no visible keyboard focus.
 - `.toasts` + result body made `aria-live` — invocation results/errors are now announced.
+- `.btn:disabled` hoisted to global scope — disabled buttons dim everywhere, not just the sidebar.
+- Astronaut reacts to a live invocation (P1.1) — see priority action #3.

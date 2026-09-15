@@ -27,19 +27,22 @@ Solo project: **owner is the maintainer for every item** — the tables below om
 
 ---
 
-## Sprint 1 — Finish the invocation loop in-world
+## Sprint 1 — Finish the invocation loop in-world ✅ COMPLETE
 **Dates:** Mon Sep 21 – Fri Oct 2, 2026
 **Goal:** An invocation you fire is legible on the astronaut itself, not only in its card.
 
-| Priority | Item | Est | Dependencies |
+| Priority | Item | Est | Status |
 |---|---|---|---|
-| P0 | **P1.1** — wire live invocation status into the astronaut (`idle→running→done`) + a status chip; separate invocation state from the transcript-size progress bar (`colony.js`, `main.js`) | 5 | Builds on last session's `setResult` plumbing |
-| P0 | Flip **ADR-001 → Accepted**; record the Option-C rejection in `DECISIONS.md` (ADR action item #7) | 0.5 | ADR-001 |
-| Stretch | Hoist `.btn:disabled` out of the sidebar-only scope so it applies everywhere (audit #5) | 0.5 | — |
+| P0 | **P1.1** — wire live invocation status into the astronaut (`idle→working→settle`); building growth + live sidebar counts follow (`colony.setInvoking` in `colony.js`, driven from the SSE watch in `main.js`) | 5 | ✅ Done |
+| P0 | Flip **ADR-001 → Accepted**; record the Option-C rejection in `DECISIONS.md` (ADR action item #7) | 0.5 | ✅ Done |
+| Stretch | Hoist `.btn:disabled` out of the sidebar-only scope so it applies everywhere (audit #5) | 0.5 | ✅ Done |
 
-**Load:** 5.5 committed + 0.5 stretch (~110% — P1.1 is the flagship functional item and worth
-filling the sprint). **Risk:** touching the 3D behavior precedence — keep the strict
-first-match-wins order intact; invocation-`running` must not mask a real `errored`/`unread`.
+**Outcome:** all committed + stretch landed. 54/54 tests pass; verified in the browser
+(idle→working→idle arc, `blocked` not masked, live "building" count, zero console errors). The
+separate status *chip* proved unnecessary — the result panel already names the status, and the
+astronaut's own badge/pose carry the in-world signal. **Risk retired:** the strict
+first-match-wins precedence is intact — the overlay upgrades to `working` only when the base
+status is not `blocked`.
 
 ---
 
