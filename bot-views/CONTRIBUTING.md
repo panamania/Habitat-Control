@@ -44,6 +44,10 @@ sessions on disk.
 The decisions that are already settled — and why — are in **[DECISIONS.md](DECISIONS.md)**.
 Worth a skim before you start; it will save you writing something I have to say no to.
 
+Known gaps and cleanup already queued up are in **[BACKLOG.md](BACKLOG.md)** — worth checking
+before you go looking for something to fix, in case it's already there with the reasoning
+behind why it isn't done yet.
+
 Two hard rules, and I will not bend on either — both are there because breaking them has
 already cost somebody's machine something:
 
