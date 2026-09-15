@@ -1,12 +1,12 @@
-# Bot Crossing — cross-platform agent adapters
+# Habitat Control — cross-platform agent adapters
 
-Four `server/platforms/*.mjs` files that plug into bot-crossing's existing
+Four `server/platforms/*.mjs` files that plug into Habitat Control's existing
 harness contract (`id / name / detect / scanThreads / openThread /
 newSession`, documented in `server/harnesses/README.md`) so the colony
 renders agents running on AWS, Azure, GCP, and self-hosted Kubernetes
 instead of local Claude Code / Codex / Cursor sessions. `scan.mjs`,
 `api.mjs`, and everything under `src/` are unchanged — that's the whole
-point of the seam bot-crossing already has.
+point of the seam Habitat Control already has.
 
 ## Install
 
@@ -48,7 +48,7 @@ workspace, a Viewer role on the Vertex project, a Kubernetes Role scoped to
 
 Each adapter sets `project` to `<platform>:<agent-or-engine-name>` (e.g.
 `aws:claims-triage-agent`, `k8s:invoice-parser`). That's what claims a hex
-zone in bot-crossing's existing layout logic, so **one zone = one deployed
+zone in Habitat Control's existing layout logic, so **one zone = one deployed
 agent**, regardless of which hyperscaler runs it — your whole fleet spreads
 across the map by agent identity, not by cloud vendor. Astronauts within a
 zone are individual sessions/runs/invocations of that agent.

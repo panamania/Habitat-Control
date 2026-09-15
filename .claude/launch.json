@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "habitat-control",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "bot-views", "run", "dev"],
+      "port": 5274,
+      "autoPort": true
+    }
+  ]
+}
