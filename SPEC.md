@@ -144,6 +144,15 @@ Ordered by priority.
 
 ## Requirements
 
+> **Current priority order (2026-09-15):** the near-term focus is **making the UI more
+> functional** — closing the invocation/result loop so the tool is something you *act through*,
+> not only look at (P1.1–P1.3 below, promoted to the immediate line of work). **All
+> exposure/beyond-localhost work is explicitly deprioritized to last** — the trust-model
+> *direction* is settled ([`ADR-001`](ADR-001-trust-model.md)), but *implementing* it and any
+> deployment topology (P2.1) now sit at the bottom of the order and gate nothing else. Rank, high
+> to low: **P0 (foundation, mostly shipped) → P1 UI-functionality → P1 breadth/config → P2
+> exposure (last).**
+
 ### Must-Have (P0) — the product isn't itself without these
 
 **P0.1 — Multi-harness local discovery & colony render.**
