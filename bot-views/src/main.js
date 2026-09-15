@@ -36,7 +36,7 @@ const app = document.getElementById('app')
 app.insertAdjacentHTML(
   'beforeend',
   `<div class="boot"><div class="inner">
-     <h1>Bot Crossing</h1>
+     <h1>Habitat Control</h1>
      <p>Scanning for agent threads…</p>
      <div class="bar"><i></i></div>
    </div></div>`
@@ -75,7 +75,7 @@ const actions = {
     const url = engine.canvas.toDataURL('image/png')
     const a = document.createElement('a')
     a.href = url
-    a.download = `bot-crossing-${colony.planet.id}-${stamp()}.png`
+    a.download = `habitat-control-${colony.planet.id}-${stamp()}.png`
     a.click()
     hud.toast('Screenshot saved')
   },
@@ -768,9 +768,9 @@ async function boot() {
     if (!document.hidden) poll()
   })
 
-  if (!localStorage.getItem('botcrossing.seen-help')) {
+  if (!localStorage.getItem('habitat-control.seen-help')) {
     hud.toggleHelp(true)
-    localStorage.setItem('botcrossing.seen-help', '1')
+    localStorage.setItem('habitat-control.seen-help', '1')
   } else {
     hud.hint('Drag to move · click an astronaut · H hides everything', 5200)
   }
@@ -817,7 +817,7 @@ engine.start()
 boot()
 
 // Handy for poking at the running colony from the console.
-window.botCrossing = { engine, rig, colony, settings, hud, poll, get threads() { return threads } }
+window.habitatControl = { engine, rig, colony, settings, hud, poll, get threads() { return threads } }
 
 /** `execCommand('copy')` over a throwaway textarea — the copy that predates permissions. */
 function copyFallback(text) {

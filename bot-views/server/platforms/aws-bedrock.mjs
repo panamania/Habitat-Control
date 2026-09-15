@@ -1,6 +1,6 @@
 // server/platforms/aws-bedrock.mjs
 //
-// Maps Amazon Bedrock Agents onto bot-crossing's Thread shape.
+// Maps Amazon Bedrock Agents onto Habitat Control's Thread shape.
 //
 // Two Bedrock APIs are involved:
 //  - @aws-sdk/client-bedrock-agent          control plane: ListAgents — the
@@ -138,7 +138,7 @@ export default {
   newSession() {
     return { ok: false, error: 'Starting a new Bedrock session from here is not wired up yet.' };
   },
-  // New capability — not part of bot-crossing's original read-only contract.
+  // New capability — not part of Habitat Control's original read-only contract.
   // Talks to a live agent and returns its text response. sessionId is
   // reused so a follow-up "ask" continues the same conversation instead of
   // starting a fresh one every time.

@@ -29,8 +29,8 @@ import { closeInvocationStore } from '../server/platforms/invocationStore.mjs'
 // ── invocationStore, in isolation ─────────────────────────────────────────────
 
 async function withStore(run) {
-  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'bot-crossing-invstore-'))
-  process.env.BOT_CROSSING_DATA = dir
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'habitat-control-invstore-'))
+  process.env.HABITAT_CONTROL_DATA = dir
   // Cache-busted like server/api.mjs is in test/state.test.mjs, so each test gets its own
   // sqlite file rather than all of them sharing whichever temp dir loaded the module first.
   const store = await import(`../server/platforms/invocationStore.mjs?${dir}`)
@@ -184,8 +184,8 @@ async function* readEvents(response) {
 }
 
 async function withServer(run) {
-  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'bot-crossing-test-'))
-  process.env.BOT_CROSSING_DATA = dir
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'habitat-control-test-'))
+  process.env.HABITAT_CONTROL_DATA = dir
   const { apiMiddleware } = await import(`../server/api.mjs?${dir}`)
   const server = http.createServer((req, res) => apiMiddleware(req, res, null))
   await new Promise((r) => server.listen(0, '127.0.0.1', r))

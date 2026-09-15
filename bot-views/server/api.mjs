@@ -24,7 +24,7 @@ import {
 } from './platforms/apiRoutes.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const DATA_DIR = process.env.BOT_CROSSING_DATA || path.join(here, '..', 'data')
+const DATA_DIR = process.env.HABITAT_CONTROL_DATA || path.join(here, '..', 'data')
 const STATE_FILE = path.join(DATA_DIR, 'colony.json')
 
 const STATE_VERSION = 2
@@ -56,7 +56,7 @@ function migrate(raw) {
  * Colony state is only ever the things the *game* invents — which plot a project got,
  * what a thread's building looks like, what you archived, which repos you took off the map.
  * The threads themselves stay
- * read-only: this file is the only thing Bot Crossing writes, anywhere.
+ * read-only: this file is the only thing Habitat Control writes, anywhere.
  */
 const emptyState = () => ({
   version: STATE_VERSION,
@@ -237,7 +237,7 @@ async function present(result) {
 /**
  * Mark the threads the colony has retired.
  *
- * Nothing is written anywhere. Bot Crossing used to set `isArchived` on the desktop app's own
+ * Nothing is written anywhere. Habitat Control used to set `isArchived` on the desktop app's own
  * session record, and it did land on disk — but the app serves from the copy it loaded at
  * launch, so the thread stayed put in its own list until the next restart, and the app would
  * rewrite the record from memory whenever it touched the thread. Papering over that took a
@@ -294,7 +294,7 @@ function send(res, status, body) {
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
 
 // The machine's own LAN addresses count as local too, so the colony can be
-// served to the home network with BOT_CROSSING_HOST set. Harmless when bound
+// served to the home network with HABITAT_CONTROL_HOST set. Harmless when bound
 // to loopback (those hosts can't reach the server anyway), and the Host +
 // Origin pairing still stops DNS rebinding and CSRF exactly as before.
 for (const addrs of Object.values(os.networkInterfaces())) {
@@ -369,7 +369,7 @@ export async function apiMiddleware(req, res, next) {
   if (!url.pathname.startsWith('/api/')) return next ? next() : send(res, 404, { error: 'Not found' })
 
   if (!isLocalRequest(req)) {
-    return send(res, 403, { error: 'Bot Crossing only answers its own page on this machine' })
+    return send(res, 403, { error: 'Habitat Control only answers its own page on this machine' })
   }
 
   try {

@@ -6,7 +6,7 @@ it needs to argue with the reason rather than work around it.
 Written down because the same questions kept arriving one PR at a time, and answering them
 per-PR was producing a codebase with three answers to each.
 
-## Bot Crossing never writes to a harness
+## Habitat Control never writes to a harness
 
 `data/colony.json` is the only file this project writes, anywhere.
 

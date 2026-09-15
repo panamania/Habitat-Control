@@ -182,7 +182,7 @@ async function fakeCursor(dirName, records) {
 }
 
 async function cursorWith(home) {
-  process.env.BOT_CROSSING_CURSOR_PROJECTS = home
+  process.env.HABITAT_CONTROL_CURSOR_PROJECTS = home
   const mod = await import(`../server/harnesses/cursor.mjs?${home}`)
   return mod.default
 }

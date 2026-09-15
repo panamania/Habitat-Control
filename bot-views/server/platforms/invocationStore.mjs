@@ -25,7 +25,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // convention zonesStore.mjs and auditLog.mjs already follow. This module
 // only gets loaded once per process (unlike server/api.mjs, which the test
 // suite re-imports per test with a cache-busting query string to pick up a
-// fresh BOT_CROSSING_DATA), so an eager open at the top of the file would
+// fresh HABITAT_CONTROL_DATA), so an eager open at the top of the file would
 // permanently pin DB_PATH to whichever test happened to import it first —
 // and on Windows, that test's own cleanup (`fs.rm` on its temp dir) then
 // fails with EBUSY because the connection to a file inside it is still open.
@@ -33,7 +33,7 @@ let db = null;
 
 function getDb() {
   if (db) return db;
-  const DATA_DIR = process.env.BOT_CROSSING_DATA || path.join(here, '..', '..', 'data');
+  const DATA_DIR = process.env.HABITAT_CONTROL_DATA || path.join(here, '..', '..', 'data');
   fs.mkdirSync(DATA_DIR, { recursive: true });
   db = new DatabaseSync(path.join(DATA_DIR, 'invocations.sqlite'));
   db.exec(`
@@ -127,7 +127,7 @@ export function listInvocations({ limit = 50 } = {}) {
 // Test-only lifecycle hook. Production code never calls this — the process
 // just exits with the connection open, same as every other file in this
 // project that opens something and never closes it. Tests that give
-// themselves a temp BOT_CROSSING_DATA dir need it so the sqlite file's
+// themselves a temp HABITAT_CONTROL_DATA dir need it so the sqlite file's
 // handle is released before they rm -rf that directory; Windows refuses to
 // unlink a file a process still has open, POSIX just quietly allows it.
 export function closeInvocationStore() {

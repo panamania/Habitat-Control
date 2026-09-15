@@ -21,3 +21,7 @@ bot-views/recordings
 
 .DS_Store
 *.log
+
+# Session/runtime state — never something to commit.
+.claude/scheduled_tasks.lock
+bot-views/.git.tmp-preserve

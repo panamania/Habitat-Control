@@ -1,7 +1,7 @@
 // server/platforms/apiRoutes.mjs
 //
 // Plain async handlers, deliberately not tied to Express/Fastify/whatever —
-// I haven't seen the actual server/api.mjs source (bot-crossing's own docs
+// I haven't seen the actual server/api.mjs source (Habitat Control's own docs
 // just say "the API lives inside the Vite dev server"), so wire these into
 // however that file already routes requests rather than treating this as
 // a drop-in file. Each handler takes a parsed request and returns a plain

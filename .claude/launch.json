@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "bot-crossing",
+      "name": "habitat-control",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "bot-views", "run", "dev"],
       "port": 5274,

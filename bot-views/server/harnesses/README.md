@@ -1,7 +1,7 @@
 # Harness adapters
 
 A **harness** is whatever runs the agent threads you want to see as astronauts — Claude Code,
-Codex CLI, OpenCode, and so on. Bot Crossing does not care which one you use: it asks every
+Codex CLI, OpenCode, and so on. Habitat Control does not care which one you use: it asks every
 harness present on the machine for its threads and draws whatever comes back.
 
 Adding one is meant to be **one new file in this directory**, plus one line in `index.mjs`.
@@ -55,7 +55,7 @@ shows the message rather than pretending the click worked.
 
 ### There is no `setArchived`, and that is deliberate
 
-Bot Crossing does not write to a harness. Not the transcripts, not the session records, not one
+Habitat Control does not write to a harness. Not the transcripts, not the session records, not one
 flag. Archiving is recorded in `data/colony.json` and nowhere else: the thread leaves the map and
 the astronaut walks back to the ship.
 
@@ -109,7 +109,7 @@ Do not put a file handle, a class instance, or a secret in it.
 
 ## Ground rules
 
-- **Read-only. No exceptions.** `data/colony.json` is the only file Bot Crossing writes,
+- **Read-only. No exceptions.** `data/colony.json` is the only file Habitat Control writes,
   anywhere. A harness's transcripts and records are somebody's actual work; the colony is a
   viewer, not an editor. If an adapter seems to need a write, it does not — say so in an issue.
 - **Never run anything out of another application's bundle.** Not to read from it, not to

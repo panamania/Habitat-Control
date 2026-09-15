@@ -1,6 +1,9 @@
-# Bot Crossing — your agent threads, as a colony
+# Habitat Control — your agent threads, as a colony
 
-**[botcrossing.com](https://botcrossing.com)**
+A fork of **[Bot Crossing](https://botcrossing.com)** by Jarren Rocks, with AWS Bedrock and
+self-hosted Kubernetes agents wired in as additional harnesses, plus a control-plane layer for
+actually invoking them — see [`INTEGRATION_NOTES.md`](INTEGRATION_NOTES.md) for what's new here
+versus upstream.
 
 Every coding-agent thread on this machine is a little astronaut. They walk out of the ship, claim
 a plot for their repo, and build something. When one needs you it stops and holds a `?` over
@@ -35,7 +38,7 @@ the harness's own CLI opens instead when nothing answers it.
 
 ## Which harnesses work
 
-A **harness** is whatever actually runs your threads. Bot Crossing reads each one's local
+A **harness** is whatever actually runs your threads. Habitat Control reads each one's local
 session files through a small adapter, so support is per-harness and mostly a matter of
 somebody writing that adapter.
 
@@ -593,11 +596,11 @@ if you are scripting against the API.
 
 ### Serving it to your network
 
-`BOT_CROSSING_HOST` changes what `npm run serve` binds to, so you can watch the colony from a
+`HABITAT_CONTROL_HOST` changes what `npm run serve` binds to, so you can watch the colony from a
 tablet on the sofa:
 
 ```bash
-BOT_CROSSING_HOST=0.0.0.0 npm start
+HABITAT_CONTROL_HOST=0.0.0.0 npm start
 ```
 
 **Understand what that hands out before you do it.** The two checks above stop a *web page* from
@@ -653,7 +656,7 @@ untouched, and the colony lays itself out again from scratch.
 
 ## Building your own
 
-Bot Crossing is one shape this idea can take. `.claude/skills/agent-session-world/` is a skill for
+Habitat Control is one shape this idea can take. `.claude/skills/agent-session-world/` is a skill for
 building the others — fish in a reef, animals in a forest, villagers, ants, boats in a harbour.
 Whatever inhabits it, the structure underneath is the same: a layout that stays put so you can
 learn the map, one draw call for the whole crowd, a single source of truth for what a thread is

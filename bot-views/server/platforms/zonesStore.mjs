@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 // data/ folder as colony.json rather than wherever the process happened to
 // be launched from.
 const here = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = process.env.BOT_CROSSING_DATA || path.join(here, '..', '..', 'data');
+const DATA_DIR = process.env.HABITAT_CONTROL_DATA || path.join(here, '..', '..', 'data');
 const STORE_PATH = path.join(DATA_DIR, 'zones.json');
 
 const DEFAULT_STATE = {
