@@ -155,6 +155,14 @@ const DEFAULTS = {
   showFps: false,
   showLabels: true,
   reducedMotion: false,
+
+  /**
+   * Where "+" next to Repos creates a new hex space's folder. Empty means "let the server
+   * decide" — its own HABITAT_CONTROL_PROJECTS_ROOT env var, or ~/HabitatControl/projects
+   * if that isn't set either. Set here rather than only on the server so it travels with
+   * the colony file (state.settings) instead of being pinned to one machine's environment.
+   */
+  projectsRoot: '',
 }
 
 /** Keys whose change forces a full rebuild of the world (terrain, scatter, sky). */

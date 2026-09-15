@@ -39,8 +39,8 @@ async function withServer(run) {
   }
 }
 
-const post = (call, name, harness = 'not-a-real-harness') =>
-  call('/api/new-project', { method: 'POST', body: JSON.stringify({ name, harness }) })
+const post = (call, name, { harness = 'not-a-real-harness', root } = {}) =>
+  call('/api/new-project', { method: 'POST', body: JSON.stringify({ name, harness, root }) })
 
 test('a valid name gets a real folder under the projects root, on disk', async () => {
   await withServer(async ({ call, projectsRoot }) => {
@@ -90,5 +90,58 @@ test('a name that collides with an existing file (not a folder) is refused', asy
     const res = await post(call, 'taken')
     assert.equal(res.status, 400)
     assert.match((await res.json()).error, /already exists there and is not a folder/)
+  })
+})
+
+// ── the configurable `root` (Settings → Projects → "New space folder") ───────────────────
+
+test('an explicit absolute root overrides the env-var default entirely', async () => {
+  await withServer(async ({ call, projectsRoot }) => {
+    const customRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'habitat-control-custom-root-'))
+    try {
+      const res = await post(call, 'over-there', { root: customRoot })
+      assert.equal(res.status, 500) // unknown-harness, past the point that matters
+      const stat = await fsp.stat(path.join(customRoot, 'over-there'))
+      assert.ok(stat.isDirectory())
+      // And it did NOT also land under the default root.
+      const defaultEntries = await fsp.readdir(projectsRoot).catch(() => [])
+      assert.deepEqual(defaultEntries, [])
+    } finally {
+      await fsp.rm(customRoot, { recursive: true, force: true })
+    }
+  })
+})
+
+test('a root that is not an absolute path is refused, before anything is created', async () => {
+  await withServer(async ({ call, projectsRoot }) => {
+    const res = await post(call, 'relative-root-space', { root: 'some/relative/path' })
+    assert.equal(res.status, 400)
+    assert.match((await res.json()).error, /must be an absolute path/)
+    const entries = await fsp.readdir(projectsRoot).catch(() => [])
+    assert.deepEqual(entries, [])
+  })
+})
+
+test('a root of "~/…" expands to the home directory', async () => {
+  await withServer(async ({ call }) => {
+    const marker = `habitat-control-home-test-${Date.now()}`
+    const target = path.join(os.homedir(), marker, 'space-in-home')
+    try {
+      const res = await post(call, 'space-in-home', { root: `~/${marker}` })
+      assert.equal(res.status, 500) // unknown-harness, past the point that matters
+      const stat = await fsp.stat(target)
+      assert.ok(stat.isDirectory())
+    } finally {
+      await fsp.rm(path.join(os.homedir(), marker), { recursive: true, force: true })
+    }
+  })
+})
+
+test('a blank root falls back to the env-var default rather than erroring', async () => {
+  await withServer(async ({ call, projectsRoot }) => {
+    const res = await post(call, 'blank-root-space', { root: '   ' })
+    assert.equal(res.status, 500) // unknown-harness, past the point that matters
+    const stat = await fsp.stat(path.join(projectsRoot, 'blank-root-space'))
+    assert.ok(stat.isDirectory())
   })
 })

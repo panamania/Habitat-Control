@@ -41,20 +41,45 @@ const PROJECTS_ROOT = process.env.HABITAT_CONTROL_PROJECTS_ROOT || path.join(os.
  */
 const SAFE_PROJECT_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
 
+/** `~` and `~/…` expand to the home directory — the settings field's own placeholder shows a
+ *  `~/…` example, so typing one back needs to actually work rather than fail the absolute-path
+ *  check below. Node's `path` module has no opinion about `~`; this is the one place that does. */
+function expandHome(p) {
+  if (p === '~') return os.homedir()
+  if (p.startsWith('~/') || p.startsWith('~\\')) return path.join(os.homedir(), p.slice(2))
+  return p
+}
+
 /**
  * A space starts as an empty folder — nothing here has a thread yet, so nothing in scan.mjs
  * would draw a hex for it. Reusing an existing empty folder of the same name is allowed (a
  * retry after the harness failed to open shouldn't need a new name); anything else with that
  * name already there is refused rather than silently reused or overwritten.
+ *
+ * `root`, when given, overrides PROJECTS_ROOT for this one call — this is how Settings →
+ * Projects → "New space folder" (persisted in the colony file, not this machine's env) gets
+ * to pick where new spaces actually land.
  */
-async function createProjectFolder(name) {
+async function createProjectFolder(name, root) {
   if (typeof name !== 'string' || !SAFE_PROJECT_NAME.test(name)) {
     const err = new Error('Name a space using only letters, numbers, dots, dashes and underscores.')
     err.status = 400
     throw err
   }
-  await fsp.mkdir(PROJECTS_ROOT, { recursive: true })
-  const dir = path.join(PROJECTS_ROOT, name)
+
+  let base = PROJECTS_ROOT
+  if (typeof root === 'string' && root.trim()) {
+    const expanded = expandHome(root.trim())
+    if (!path.isAbsolute(expanded)) {
+      const err = new Error('The new-space folder must be an absolute path (or start with ~).')
+      err.status = 400
+      throw err
+    }
+    base = path.resolve(expanded)
+  }
+
+  await fsp.mkdir(base, { recursive: true })
+  const dir = path.join(base, name)
   const existing = await fsp.stat(dir).catch(() => null)
   if (existing && !existing.isDirectory()) {
     const err = new Error(`"${name}" already exists there and is not a folder`)
@@ -480,8 +505,8 @@ export async function apiMiddleware(req, res, next) {
      * same harness dispatch, same present(), same deep-link-or-terminal fallback.
      */
     if (url.pathname === '/api/new-project' && req.method === 'POST') {
-      const { name, harness } = await readJsonBody(req)
-      const dir = await createProjectFolder(name)
+      const { name, harness, root } = await readJsonBody(req)
+      const dir = await createProjectFolder(name, root)
       const shown = await present(await harnessNewSession(harness || 'claude-code', dir))
       return send(res, shown.ok ? 200 : 400, shown)
     }

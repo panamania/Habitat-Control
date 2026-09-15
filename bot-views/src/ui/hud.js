@@ -251,6 +251,18 @@ export class Hud {
       this._toggle('Show FPS', 'showFps')
     )
     body.appendChild(view)
+
+    // Projects.
+    const projects = group('Projects')
+    projects.append(
+      this._text(
+        'New space folder',
+        'projectsRoot',
+        '~/HabitatControl/projects',
+        'Where "+" next to Repos creates a new hex space. Must be an absolute path; leave blank for the server’s own default.'
+      )
+    )
+    body.appendChild(projects)
   }
 
   _row(label, hint) {
@@ -298,6 +310,36 @@ export class Hud {
       sync: () => {
         sel.value = String(this.settings.get(key))
         row.classList.toggle('overridden', this.settings.isOverridden(key))
+      },
+    })
+    return row
+  }
+
+  /**
+   * A free-text setting — a path, so far, and the only one, which is why there was no reason
+   * for this control to exist until now. Commits on blur/Enter (`change`, not `input`) rather
+   * than on every keystroke: a half-typed path is not a value worth writing to the colony
+   * file or reacting to yet.
+   */
+  _text(label, key, placeholder, hint) {
+    const row = this._row(label, hint)
+    // Every other row here puts a compact control beside a label that wraps around it — a
+    // path needs the opposite: the label sits on its own line and the input takes the row's
+    // full width, or it has nowhere near enough room to show what was typed.
+    row.classList.add('row-stacked')
+    const input = document.createElement('input')
+    input.type = 'text'
+    input.className = 'text-input'
+    input.placeholder = placeholder || ''
+    input.spellcheck = false
+    input.autocomplete = 'off'
+    input.addEventListener('change', () => this.settings.set(key, input.value.trim()))
+    row.appendChild(input)
+    this.controls.push({
+      el: row,
+      sync: () => {
+        // Don't stomp on what's mid-typing just because a poll or another setting synced.
+        if (document.activeElement !== input) input.value = this.settings.get(key) || ''
       },
     })
     return row

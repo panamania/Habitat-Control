@@ -170,7 +170,7 @@ const actions = {
     const trimmed = (name || '').trim()
     if (!trimmed) return
     try {
-      await newProject(trimmed)
+      await newProject(trimmed, settings.get('projectsRoot'))
       hud.toast(`${trimmed} — opening Claude Code…`)
       setTimeout(poll, 6000)
     } catch (err) {

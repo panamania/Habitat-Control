@@ -102,12 +102,17 @@ export const newSession = (folder, harness) => post('/api/new-session', { folder
 export const revealFolder = (folder) => post('/api/reveal', { folder })
 
 /**
- * Create a brand-new hex space: an empty folder under the server's own projects root, with a
- * fresh Claude Code session opened in it. There's no existing thread to discover a zone from
- * here — every other zone is found, not made — so this is really "start a project"; the hex
- * itself is just what that looks like once scanThreads() finds the session it left behind.
+ * Create a brand-new hex space: an empty folder under a projects root, with a fresh Claude
+ * Code session opened in it. There's no existing thread to discover a zone from here — every
+ * other zone is found, not made — so this is really "start a project"; the hex itself is just
+ * what that looks like once scanThreads() finds the session it left behind.
+ *
+ * `root`, when given, overrides the server's own default (its HABITAT_CONTROL_PROJECTS_ROOT
+ * env var, or ~/HabitatControl/projects) — this is the Settings → Projects → "New space
+ * folder" value, so where new spaces go travels with the colony file rather than being pinned
+ * to whichever machine has that env var set.
  */
-export const newProject = (name) => post('/api/new-project', { name, harness: 'claude-code' })
+export const newProject = (name, root) => post('/api/new-project', { name, harness: 'claude-code', root })
 
 // ── platform zones + invoke ────────────────────────────────────────────────────────────
 // Added on top of the original read-only contract above — everything above answers "what's

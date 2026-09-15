@@ -180,12 +180,15 @@ into the same repo. Picking somebody is also picking the zone they are standing 
 
 **Adding one.** The `+` next to Repos is the odd one out — every other zone here is
 *discovered*, a repo somebody already had threads in; this is how one gets *made*. Name it and
-the server creates an empty folder under its own projects root
-(`HABITAT_CONTROL_PROJECTS_ROOT`, default `~/HabitatControl/projects`) and opens a fresh Claude
-Code session there — the same `claude://code/new?folder=…` deep link "New conversation" below
-uses. There's no hex for it yet at that point: a zone still only exists once a real thread does,
-so it appears the same way any other new thread would, on the next poll after the session
-actually leaves a record behind.
+the server creates an empty folder and opens a fresh Claude Code session there — the same
+`claude://code/new?folder=…` deep link "New conversation" below uses. There's no hex for it yet
+at that point: a zone still only exists once a real thread does, so it appears the same way any
+other new thread would, on the next poll after the session actually leaves a record behind.
+
+Where that folder lands is **Settings → Projects → "New space folder"** — an absolute path (or
+one starting with `~`), persisted with the rest of your settings rather than tied to one
+machine. Leave it blank and the server falls back to its own `HABITAT_CONTROL_PROJECTS_ROOT` env
+var, or `~/HabitatControl/projects` if that isn't set either.
 
 **The repo**, at the top, whether or not anybody is selected:
 
@@ -626,7 +629,7 @@ What it touches on disk, in full:
 | | |
 | --- | --- |
 | Reads | Your harness's own session records and transcripts |
-| Writes | `data/colony.json`; and, only when you explicitly name a new hex space, one empty folder under `HABITAT_CONTROL_PROJECTS_ROOT` |
+| Writes | `data/colony.json`; and, only when you explicitly name a new hex space, one empty folder under wherever Settings → Projects → "New space folder" (or `HABITAT_CONTROL_PROJECTS_ROOT`) points |
 | Sends | Nothing. No network calls, no telemetry, no account |
 
 `data/colony.json` holds the names and paths of the repos you work in, so it is gitignored —

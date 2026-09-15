@@ -104,8 +104,7 @@ env vars (see server/platforms/*.mjs headers for what each one needs).
 - **Add a hex space from the UI** (`POST /api/new-project`, the `+` next
   to Repos in `src/ui/hud.js`) — the one place in this fork that causes a
   project to exist rather than only discovering one that already did. It
-  creates an empty folder under `HABITAT_CONTROL_PROJECTS_ROOT` (default
-  `~/HabitatControl/projects`) and opens a fresh Claude Code session there
+  creates an empty folder and opens a fresh Claude Code session there
   through the same `newSession(dir)` deep link the existing "New
   conversation" button already uses — no new capability at the harness
   layer, just a folder that didn't exist a moment before. Hardcoded to
@@ -118,11 +117,23 @@ env vars (see server/platforms/*.mjs headers for what each one needs).
   DECISIONS.md, CONTRIBUTING.md and server/harnesses/README.md all had
   their "the only file this project writes, anywhere" language corrected:
   it's no longer literally true, though the substance of that rule (never
-  writing into a harness's own records) is untouched. Covered by
-  `test/new-project.test.mjs` for the folder-creation and name-validation
-  logic; not covered end-to-end through a real harness launch, same
-  reasoning as `/api/open`/`/api/new-session` already weren't — that would
-  mean actually asking the OS to open a `claude://` URL on every test run.
+  writing into a harness's own records) is untouched.
+  - **Where it lands is configurable two ways**, stacked: `POST
+    /api/new-project`'s optional `root` (Settings → Projects → "New space
+    folder" in the client, persisted in `state.settings` so it travels
+    with the colony file rather than one machine's env) overrides
+    `HABITAT_CONTROL_PROJECTS_ROOT` (default `~/HabitatControl/projects`)
+    entirely when set. `~` and `~/…` expand server-side
+    (`expandHome` in api.mjs) since the setting's own placeholder shows a
+    `~/…` example. Anything given must resolve to an absolute path or the
+    request is refused before anything is created.
+  - Covered by `test/new-project.test.mjs` for name validation, folder
+    creation, the `root` override (including `~` expansion and a
+    non-absolute `root` being refused), and a blank `root` correctly
+    falling back to the env-var default. Not covered end-to-end through a
+    real harness launch, same reasoning as `/api/open`/`/api/new-session`
+    already weren't — that would mean actually asking the OS to open a
+    `claude://` URL on every test run.
 
 ## Deliberately not done
 - Azure AI Foundry and GCP Vertex AI adapters exist in an earlier version
