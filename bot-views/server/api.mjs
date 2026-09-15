@@ -27,6 +27,44 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = process.env.HABITAT_CONTROL_DATA || path.join(here, '..', 'data')
 const STATE_FILE = path.join(DATA_DIR, 'colony.json')
 
+/**
+ * Where a brand-new hex space's folder gets created. Every other zone is discovered — a
+ * repo somebody already had threads in — so this is the one place the colony causes a
+ * project to exist rather than finding one that already did.
+ */
+const PROJECTS_ROOT = process.env.HABITAT_CONTROL_PROJECTS_ROOT || path.join(os.homedir(), 'HabitatControl', 'projects')
+
+/**
+ * No separators, no leading dot, nothing that could climb out of PROJECTS_ROOT — a space's
+ * name becomes a literal folder name and nothing else, so this is the one check standing
+ * between a text box in the browser and `mkdir` anywhere on disk.
+ */
+const SAFE_PROJECT_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
+
+/**
+ * A space starts as an empty folder — nothing here has a thread yet, so nothing in scan.mjs
+ * would draw a hex for it. Reusing an existing empty folder of the same name is allowed (a
+ * retry after the harness failed to open shouldn't need a new name); anything else with that
+ * name already there is refused rather than silently reused or overwritten.
+ */
+async function createProjectFolder(name) {
+  if (typeof name !== 'string' || !SAFE_PROJECT_NAME.test(name)) {
+    const err = new Error('Name a space using only letters, numbers, dots, dashes and underscores.')
+    err.status = 400
+    throw err
+  }
+  await fsp.mkdir(PROJECTS_ROOT, { recursive: true })
+  const dir = path.join(PROJECTS_ROOT, name)
+  const existing = await fsp.stat(dir).catch(() => null)
+  if (existing && !existing.isDirectory()) {
+    const err = new Error(`"${name}" already exists there and is not a folder`)
+    err.status = 400
+    throw err
+  }
+  if (!existing) await fsp.mkdir(dir)
+  return dir
+}
+
 const STATE_VERSION = 2
 
 /**
@@ -432,6 +470,19 @@ export async function apiMiddleware(req, res, next) {
         return send(res, 200, { ok: true })
       }
       const shown = await present(await harnessNewSession(harness || (await defaultHarness()), dir))
+      return send(res, shown.ok ? 200 : 400, shown)
+    }
+
+    /**
+     * A hex space that doesn't exist yet. Unlike /api/new-session above, `dir` here is
+     * created rather than merely checked — the one place this file makes a folder exist
+     * instead of finding one that already did. Everything past that point is identical:
+     * same harness dispatch, same present(), same deep-link-or-terminal fallback.
+     */
+    if (url.pathname === '/api/new-project' && req.method === 'POST') {
+      const { name, harness } = await readJsonBody(req)
+      const dir = await createProjectFolder(name)
+      const shown = await present(await harnessNewSession(harness || 'claude-code', dir))
       return send(res, shown.ok ? 200 : 400, shown)
     }
 

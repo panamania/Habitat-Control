@@ -15,6 +15,7 @@ import {
   saveState,
   openThread,
   newSession,
+  newProject,
   revealFolder,
   askAgent,
   subscribeInvocation,
@@ -156,6 +157,24 @@ const actions = {
       setTimeout(poll, 6000)
     } catch (err) {
       hud.toast(err.message || 'Could not start a thread there', 'err')
+    }
+  },
+
+  /**
+   * A brand-new hex space, from nothing but a name. There's no folder and no thread yet —
+   * the server creates the folder under its own projects root and opens a fresh Claude Code
+   * session there, and the hex itself shows up the same way every other one does: once that
+   * session has left a real record for the next poll to find.
+   */
+  newSpace: async (name) => {
+    const trimmed = (name || '').trim()
+    if (!trimmed) return
+    try {
+      await newProject(trimmed)
+      hud.toast(`${trimmed} — opening Claude Code…`)
+      setTimeout(poll, 6000)
+    } catch (err) {
+      hud.toast(err.message || 'Could not create that space', 'err')
     }
   },
 

@@ -48,7 +48,10 @@ Two hard rules, and I will not bend on either — both are there because breakin
 already cost somebody's machine something:
 
 - **Nothing is ever written to a harness.** Not a transcript, not a session record, not one
-  flag. `data/colony.json` is the only file this project writes.
+  flag. `data/colony.json` is the only file this project writes *without being asked* — the one
+  exception is `/api/new-project`, which creates a plain empty folder under its own configured
+  root when you explicitly ask for a new hex space. That is a folder this project causes to
+  exist, never a write into anything a harness already owns — see DECISIONS.md.
 - **Nothing is ever read from or executed inside another application's bundle.** Only files
   under the user's own home directory. Opening a thread goes through a URL the OS resolves, or
   a command the user already has on `PATH`.

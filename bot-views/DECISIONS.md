@@ -8,7 +8,17 @@ per-PR was producing a codebase with three answers to each.
 
 ## Habitat Control never writes to a harness
 
-`data/colony.json` is the only file this project writes, anywhere.
+Never into a harness's own records — not a transcript, not a session file, not one flag. That
+rule is absolute and predates this section.
+
+It is no longer true that `data/colony.json` is the *only* file this project ever writes,
+though: `/api/new-project` creates a plain empty folder under its own configured projects root
+when you explicitly ask it to add a new hex space (see the README's "Adding one"). That folder
+is not a harness's territory — nothing is being read from or altered inside Claude Code's, or
+any other harness's, own store — so the rule above still holds. What changed is narrower: this
+project can now cause a *new* project to exist on disk, at a location you named, because you
+asked it to. It cannot write anywhere else, and it still cannot touch anything a harness already
+owns.
 
 It used to write one flag — `isArchived` on Claude Code's own session record. That write landed
 on disk, and still looked broken: the desktop app serves from the copy of its records it loaded

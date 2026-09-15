@@ -178,6 +178,15 @@ without a frame around it.
 An astronaut, a zone's deck, the name plate over it, or a repo in that list — all four drill
 into the same repo. Picking somebody is also picking the zone they are standing on.
 
+**Adding one.** The `+` next to Repos is the odd one out — every other zone here is
+*discovered*, a repo somebody already had threads in; this is how one gets *made*. Name it and
+the server creates an empty folder under its own projects root
+(`HABITAT_CONTROL_PROJECTS_ROOT`, default `~/HabitatControl/projects`) and opens a fresh Claude
+Code session there — the same `claude://code/new?folder=…` deep link "New conversation" below
+uses. There's no hex for it yet at that point: a zone still only exists once a real thread does,
+so it appears the same way any other new thread would, on the next poll after the session
+actually leaves a record behind.
+
 **The repo**, at the top, whether or not anybody is selected:
 
 - **New conversation** (`C`) starts a fresh thread in that folder. It is the same
@@ -617,11 +626,15 @@ What it touches on disk, in full:
 | | |
 | --- | --- |
 | Reads | Your harness's own session records and transcripts |
-| Writes | `data/colony.json`, and **one** `isArchived` field per archived thread |
+| Writes | `data/colony.json`; and, only when you explicitly name a new hex space, one empty folder under `HABITAT_CONTROL_PROJECTS_ROOT` |
 | Sends | Nothing. No network calls, no telemetry, no account |
 
 `data/colony.json` holds the names and paths of the repos you work in, so it is gitignored —
 worth knowing before you copy one into an issue.
+
+Creating a hex space is the one action in this whole tool that makes something exist on disk
+rather than only reading or opening what is already there — see "Adding one" above, and
+DECISIONS.md for why that still doesn't count as writing to a harness.
 
 ## Layout
 

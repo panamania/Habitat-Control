@@ -836,6 +836,58 @@ body {
   flex: none;
 }
 
+.side .sec-head .btn-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.side .sec-head .btn-add:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); }
+.side .sec-head .btn-add[aria-expanded='true'] { color: var(--accent); }
+.side .sec-head .btn-add svg { width: 13px; height: 13px; }
+
+.side .new-space {
+  display: flex;
+  gap: 6px;
+  flex: none;
+  padding: 0 15px 10px;
+}
+
+.side .new-space[hidden] { display: none; }
+
+.side .new-space input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+}
+
+.side .new-space input:disabled { opacity: 0.5; }
+
+.side .new-space #btn-new-space-confirm {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
+.side .new-space #btn-new-space-confirm svg { width: 14px; height: 14px; }
+
 .side .projects {
   flex: 1;
   min-height: 0;

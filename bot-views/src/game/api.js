@@ -101,6 +101,14 @@ export const newSession = (folder, harness) => post('/api/new-session', { folder
 
 export const revealFolder = (folder) => post('/api/reveal', { folder })
 
+/**
+ * Create a brand-new hex space: an empty folder under the server's own projects root, with a
+ * fresh Claude Code session opened in it. There's no existing thread to discover a zone from
+ * here — every other zone is found, not made — so this is really "start a project"; the hex
+ * itself is just what that looks like once scanThreads() finds the session it left behind.
+ */
+export const newProject = (name) => post('/api/new-project', { name, harness: 'claude-code' })
+
 // ── platform zones + invoke ────────────────────────────────────────────────────────────
 // Added on top of the original read-only contract above — everything above answers "what's
 // out there", these answer "reorganise the taxonomy" and "tell an agent to do something".

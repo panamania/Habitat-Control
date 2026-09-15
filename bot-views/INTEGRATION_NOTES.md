@@ -101,6 +101,28 @@ env vars (see server/platforms/*.mjs headers for what each one needs).
   client doesn't have an easy local endpoint override the way a plain
   `fetch()` does, so its streaming change is covered by code review and
   the shared pattern with k8s-agents.mjs, not by a test.
+- **Add a hex space from the UI** (`POST /api/new-project`, the `+` next
+  to Repos in `src/ui/hud.js`) — the one place in this fork that causes a
+  project to exist rather than only discovering one that already did. It
+  creates an empty folder under `HABITAT_CONTROL_PROJECTS_ROOT` (default
+  `~/HabitatControl/projects`) and opens a fresh Claude Code session there
+  through the same `newSession(dir)` deep link the existing "New
+  conversation" button already uses — no new capability at the harness
+  layer, just a folder that didn't exist a moment before. Hardcoded to
+  `claude-code` rather than "whichever harness is detected," because that
+  was the explicit ask; broadening it to other harnesses is a one-line
+  change in `src/game/api.js`'s `newProject`. The hex itself isn't a new
+  concept — there's still no such thing as an empty zone — it just shows
+  up the same way every other new thread does, on the poll after Claude
+  Code actually leaves a session record behind. This is also the reason
+  DECISIONS.md, CONTRIBUTING.md and server/harnesses/README.md all had
+  their "the only file this project writes, anywhere" language corrected:
+  it's no longer literally true, though the substance of that rule (never
+  writing into a harness's own records) is untouched. Covered by
+  `test/new-project.test.mjs` for the folder-creation and name-validation
+  logic; not covered end-to-end through a real harness launch, same
+  reasoning as `/api/open`/`/api/new-session` already weren't — that would
+  mean actually asking the OS to open a `claude://` URL on every test run.
 
 ## Deliberately not done
 - Azure AI Foundry and GCP Vertex AI adapters exist in an earlier version

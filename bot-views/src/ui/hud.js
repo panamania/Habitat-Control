@@ -373,6 +373,12 @@ export class Hud {
     on('#btn-copy-path', 'click', () => this.actions.copyProjectPath?.())
     on('#btn-hide-project', 'click', () => this.actions.hideProject?.())
     on('#btn-hidden-toggle', 'click', () => this.toggleHiddenList())
+    on('#btn-new-space', 'click', () => this.toggleNewSpace())
+    on('#btn-new-space-confirm', 'click', () => this._sendNewSpace())
+    this.$('#new-space-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this._sendNewSpace()
+      if (e.key === 'Escape') this.toggleNewSpace(false)
+    })
     on('#btn-locate', 'click', () => this.actions.focusProject?.(this.project?.name))
     on('#btn-close-project', 'click', () => this.actions.closeProject?.())
     on('.help', 'click', (e) => {
@@ -400,6 +406,41 @@ export class Hud {
       this.$('#btn-ask').disabled = false
     })
     input.value = ''
+  }
+
+  /**
+   * Shows or hides the inline "name a new space" row under the Repos header. There's
+   * nothing to pick here the way there is for an existing repo — a brand-new hex starts as
+   * just a name, so the whole affordance is one input and one button.
+   */
+  toggleNewSpace(force) {
+    const row = this.$('#new-space-row')
+    const open = force ?? row.hidden
+    row.hidden = !open
+    this.$('#btn-new-space').setAttribute('aria-expanded', String(open))
+    if (open) {
+      const input = this.$('#new-space-input')
+      input.value = ''
+      input.focus()
+    }
+  }
+
+  /**
+   * Create the space, then close the row regardless of outcome — the toast already says
+   * whether it worked, and leaving a stale name sitting in an open input reads as unfinished
+   * business the input doesn't actually have.
+   */
+  _sendNewSpace() {
+    const input = this.$('#new-space-input')
+    const name = input.value.trim()
+    if (!name) return
+    input.disabled = true
+    this.$('#btn-new-space-confirm').disabled = true
+    Promise.resolve(this.actions.newSpace?.(name)).finally(() => {
+      input.disabled = false
+      this.$('#btn-new-space-confirm').disabled = false
+      this.toggleNewSpace(false)
+    })
   }
 
   // ── state in ────────────────────────────────────────────────────────────────────────
@@ -942,7 +983,15 @@ const TEMPLATE = `
 
   <div class="side-body">
     <div class="projects-pane">
-      <div class="sec-head"><span>Repos</span></div>
+      <div class="sec-head">
+        <span>Repos</span>
+        <button type="button" class="btn-add" id="btn-new-space" aria-expanded="false"
+          title="Add a hex space — creates a folder and opens a fresh Claude Code session there">${ICON.plus}</button>
+      </div>
+      <div class="new-space" id="new-space-row" hidden>
+        <input type="text" id="new-space-input" placeholder="Space name…" maxlength="64" />
+        <button class="btn primary" id="btn-new-space-confirm" title="Create this space">${ICON.plus}</button>
+      </div>
       <div class="projects"></div>
       <div class="hidden-block" hidden>
         <button type="button" class="hidden-toggle" id="btn-hidden-toggle" aria-expanded="false">
