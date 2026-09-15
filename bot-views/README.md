@@ -1,9 +1,8 @@
 # Habitat Control — your agent threads, as a colony
 
-A fork of **[Bot Crossing](https://botcrossing.com)** by Jarren Rocks, with AWS Bedrock and
-self-hosted Kubernetes agents wired in as additional harnesses, plus a control-plane layer for
-actually invoking them — see [`INTEGRATION_NOTES.md`](INTEGRATION_NOTES.md) for what's new here
-versus upstream.
+Adds AWS Bedrock and self-hosted Kubernetes agents as additional harnesses, plus a control-plane
+layer for actually invoking them — see [`INTEGRATION_NOTES.md`](INTEGRATION_NOTES.md) for what's
+new here. (See [References](#references) at the bottom for what this project builds on.)
 
 Every coding-agent thread on this machine is a little astronaut. They walk out of the ship, claim
 a plot for their repo, and build something. When one needs you it stops and holds a `?` over
@@ -701,3 +700,8 @@ Everything else you see — the shaders, the terrain, the sky, the ship, the cre
 faces, the plot decks and their kerbs — is drawn by this project and is MIT along with the code.
 
 Not affiliated with Anthropic, OpenAI, Google, or any of the other harness vendors listed above.
+
+## References
+
+This is a fork of **[Bot Crossing](https://botcrossing.com)** by Jarren Rocks — see
+[`INTEGRATION_NOTES.md`](INTEGRATION_NOTES.md) for exactly what this fork adds on top of it.
