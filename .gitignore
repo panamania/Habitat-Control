@@ -1,0 +1,23 @@
+# bot-views is the actual app (vendored as plain files, not a submodule — see
+# git log for why). These mirror its own .gitignore, rooted under bot-views/.
+bot-views/node_modules
+bot-views/dist
+
+# Your colony: which repo sits on which plot, and what you archived. Holds the
+# names and paths of the repos you work in, so it stays out of the repository.
+bot-views/data/*.json
+bot-views/data/*.tmp
+bot-views/data/*.sqlite
+bot-views/data/*.log.jsonl
+
+# Per-machine Claude Code permissions — personal paths live in here.
+bot-views/.claude/settings.local.json
+
+# Raw asset packs — the built glbs in bot-views/public/assets are checked in instead.
+bot-views/assets-src
+
+# Local capture output — not part of the project.
+bot-views/recordings
+
+.DS_Store
+*.log
