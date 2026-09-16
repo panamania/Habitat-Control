@@ -131,6 +131,14 @@ export class Colony {
     this.buildings = new Map()
     this.threads = new Map()
     this.usedAccents = new Set()
+    // Thread ids with an invocation you fired currently in flight. This is browser-side
+    // state, not something the scan reports — it flips an astronaut to `working` live,
+    // between polls, so an agent you just asked to do something reacts on its plot rather
+    // than only in its card. Cleared when the invocation reaches done/error.
+    this.invoking = new Set()
+    // The last roster setThreads() built, kept so a live invocation change can re-run the
+    // status pass over it without a full rescan/relayout.
+    this._roster = []
 
     this.worldGroup = new THREE.Group()
     this.worldGroup.name = 'world'
@@ -334,7 +342,7 @@ export class Colony {
       list.sort((a, b) => a.createdAt - b.createdAt)
 
       list.forEach((thread, i) => {
-        const status = statusFor(thread, now)
+        const status = this._statusFor(thread, now)
         if (stats[status] !== undefined) stats[status]++
         if (status === 'waiting' || status === 'blocked') urgent.add(plot.id)
         if (status === 'waiting' || status === 'blocked' || status === 'working') active.add(plot.id)
@@ -366,10 +374,48 @@ export class Colony {
     this.threads = new Map(live.map((t) => [t.id, t]))
     this.urgentPlots = urgent
     this.activePlots = active
+    this._roster = roster
     this._rebuildNavigation()
     this.stats = { ...stats, done: stats.celebrating }
     this.astronauts.setRoster(roster, this._world())
     return this.stats
+  }
+
+  /**
+   * `statusFor`, plus the live invocation overlay: a thread with an invocation you fired in
+   * flight reads as `working` (⚒) even between scans — except when the scan already has it
+   * `blocked`, which a running request must never paper over. Everything else it may upgrade:
+   * an idle, dormant, shipped or waiting astronaut is genuinely working while it answers you.
+   */
+  _statusFor(thread, now = Date.now()) {
+    const base = statusFor(thread, now)
+    if (base !== 'blocked' && this.invoking.has(thread.id)) return 'working'
+    return base
+  }
+
+  /**
+   * Mark an invocation for `id` as in flight (or no longer), and reflect it now rather than
+   * at the next poll: the astronaut's behaviour, its badge, the building's growth and the
+   * sidebar counts all re-derive from the roster already in hand — no rescan, no relayout.
+   * `onStats` lets the HUD's counts follow along.
+   */
+  setInvoking(id, active) {
+    if (!id) return
+    const had = this.invoking.has(id)
+    if (active) this.invoking.add(id)
+    else this.invoking.delete(id)
+    if (this.invoking.has(id) === had) return
+
+    const now = Date.now()
+    const counts = { agents: this._roster.length, projects: this.plotOrder.length }
+    for (const key of STATUS_ORDER) counts[key] = 0
+    for (const entry of this._roster) {
+      entry.status = this._statusFor(entry.thread, now)
+      if (counts[entry.status] !== undefined) counts[entry.status]++
+    }
+    this.stats = { ...counts, done: counts.celebrating }
+    this.astronauts.setRoster(this._roster, this._world())
+    this.onStats?.(this.stats)
   }
 
   _syncPlots(projects) {
@@ -743,13 +789,15 @@ export class Colony {
 
   _isLive(id) {
     const thread = this.threads.get(id)
-    return Boolean(thread && thread.running)
+    // An invocation you fired counts as live too, so the building creeps upward while the
+    // agent answers — the same "work is happening here" cue a running scan gives.
+    return Boolean((thread && thread.running) || this.invoking.has(id))
   }
 
-  /** A site somebody is standing at: running, or stopped waiting on you. */
+  /** A site somebody is standing at: running, stopped waiting on you, or answering an invoke. */
   _isActive(id) {
     const thread = this.threads.get(id)
-    return Boolean(thread && (thread.running || thread.unread || thread.hasError))
+    return Boolean((thread && (thread.running || thread.unread || thread.hasError)) || this.invoking.has(id))
   }
 
   _badgeFor(agent) {

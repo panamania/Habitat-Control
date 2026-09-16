@@ -44,11 +44,18 @@ sessions on disk.
 The decisions that are already settled — and why — are in **[DECISIONS.md](DECISIONS.md)**.
 Worth a skim before you start; it will save you writing something I have to say no to.
 
+Known gaps and cleanup already queued up are in **[BACKLOG.md](BACKLOG.md)** — worth checking
+before you go looking for something to fix, in case it's already there with the reasoning
+behind why it isn't done yet.
+
 Two hard rules, and I will not bend on either — both are there because breaking them has
 already cost somebody's machine something:
 
 - **Nothing is ever written to a harness.** Not a transcript, not a session record, not one
-  flag. `data/colony.json` is the only file this project writes.
+  flag. `data/colony.json` is the only file this project writes *without being asked* — the one
+  exception is `/api/new-project`, which creates a plain empty folder under its own configured
+  root when you explicitly ask for a new hex space. That is a folder this project causes to
+  exist, never a write into anything a harness already owns — see DECISIONS.md.
 - **Nothing is ever read from or executed inside another application's bundle.** Only files
   under the user's own home directory. Opening a thread goes through a URL the OS resolves, or
   a command the user already has on `PATH`.

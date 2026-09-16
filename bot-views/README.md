@@ -1,9 +1,8 @@
 # Habitat Control — your agent threads, as a colony
 
-A fork of **[Bot Crossing](https://botcrossing.com)** by Jarren Rocks, with AWS Bedrock and
-self-hosted Kubernetes agents wired in as additional harnesses, plus a control-plane layer for
-actually invoking them — see [`INTEGRATION_NOTES.md`](INTEGRATION_NOTES.md) for what's new here
-versus upstream.
+Adds AWS Bedrock and self-hosted Kubernetes agents as additional harnesses, plus a control-plane
+layer for actually invoking them — see [`INTEGRATION_NOTES.md`](INTEGRATION_NOTES.md) for what's
+new here. (See [References](#references) at the bottom for what this project builds on.)
 
 Every coding-agent thread on this machine is a little astronaut. They walk out of the ship, claim
 a plot for their repo, and build something. When one needs you it stops and holds a `?` over
@@ -178,6 +177,18 @@ without a frame around it.
 
 An astronaut, a zone's deck, the name plate over it, or a repo in that list — all four drill
 into the same repo. Picking somebody is also picking the zone they are standing on.
+
+**Adding one.** The `+` next to Repos is the odd one out — every other zone here is
+*discovered*, a repo somebody already had threads in; this is how one gets *made*. Name it and
+the server creates an empty folder and opens a fresh Claude Code session there — the same
+`claude://code/new?folder=…` deep link "New conversation" below uses. There's no hex for it yet
+at that point: a zone still only exists once a real thread does, so it appears the same way any
+other new thread would, on the next poll after the session actually leaves a record behind.
+
+Where that folder lands is **Settings → Projects → "New space folder"** — an absolute path (or
+one starting with `~`), persisted with the rest of your settings rather than tied to one
+machine. Leave it blank and the server falls back to its own `HABITAT_CONTROL_PROJECTS_ROOT` env
+var, or `~/HabitatControl/projects` if that isn't set either.
 
 **The repo**, at the top, whether or not anybody is selected:
 
@@ -618,11 +629,15 @@ What it touches on disk, in full:
 | | |
 | --- | --- |
 | Reads | Your harness's own session records and transcripts |
-| Writes | `data/colony.json`, and **one** `isArchived` field per archived thread |
+| Writes | `data/colony.json`; and, only when you explicitly name a new hex space, one empty folder under wherever Settings → Projects → "New space folder" (or `HABITAT_CONTROL_PROJECTS_ROOT`) points |
 | Sends | Nothing. No network calls, no telemetry, no account |
 
 `data/colony.json` holds the names and paths of the repos you work in, so it is gitignored —
 worth knowing before you copy one into an issue.
+
+Creating a hex space is the one action in this whole tool that makes something exist on disk
+rather than only reading or opening what is already there — see "Adding one" above, and
+DECISIONS.md for why that still doesn't count as writing to a harness.
 
 ## Layout
 
@@ -701,3 +716,8 @@ Everything else you see — the shaders, the terrain, the sky, the ship, the cre
 faces, the plot decks and their kerbs — is drawn by this project and is MIT along with the code.
 
 Not affiliated with Anthropic, OpenAI, Google, or any of the other harness vendors listed above.
+
+## References
+
+This is a fork of **[Bot Crossing](https://botcrossing.com)** by Jarren Rocks — see
+[`INTEGRATION_NOTES.md`](INTEGRATION_NOTES.md) for exactly what this fork adds on top of it.
