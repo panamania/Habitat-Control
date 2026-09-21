@@ -41,6 +41,7 @@ const ICON = {
   back: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>`,
   plus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11.7a8 8 0 0 1-8.5 8 9.3 9.3 0 0 1-2.7-.4L4.5 21l1.4-4.1a7.9 7.9 0 0 1-2.4-5.7A8 8 0 0 1 12 3.6a8 8 0 0 1 8.5 8.1z"/><path d="M12 8.6v5.4M9.3 11.3h5.4"/></svg>`,
   folder: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.4A1.4 1.4 0 0 1 4.4 6h4.2l2 2.5h7A1.4 1.4 0 0 1 19 9.9v7.7a1.4 1.4 0 0 1-1.4 1.4H4.4A1.4 1.4 0 0 1 3 17.6z"/></svg>`,
+  pencil: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14.5 7.5l3 3"/></svg>`,
   copy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>`,
   locate: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7.6"/><path d="M12 1.8v2.6M12 19.6v2.6M1.8 12h2.6M19.6 12h2.6"/></svg>`,
   orbit: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4"/><ellipse cx="12" cy="12" rx="10.2" ry="4.6" transform="rotate(-24 12 12)"/><circle cx="21" cy="8.2" r="1.5" fill="currentColor" stroke="none"/></svg>`,
@@ -426,6 +427,14 @@ export class Hud {
       if (e.key === 'Escape') this.toggleNewSpace(false)
     })
     on('#btn-locate', 'click', () => this.actions.focusProject?.(this.project?.name))
+    on('#btn-rename-project', 'click', () => this.startRename())
+    on('.side .name', 'dblclick', () => this.startRename())
+    const renameInput = this.$('#rename-input')
+    renameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this._endRename(true)
+      else if (e.key === 'Escape') this._endRename(false)
+    })
+    renameInput.addEventListener('blur', () => this._endRename(true))
     on('#btn-close-project', 'click', () => this.actions.closeProject?.())
     on('.help', 'click', (e) => {
       if (e.target === this.$('.help')) this.toggleHelp(false)
@@ -514,9 +523,9 @@ export class Hud {
    */
   setLegend(projects, activeName = null, hidden = [], folded = []) {
     const signature =
-      projects.map((p) => `${p.name}:${p.count}:${p.accent}:${p.urgent ? 1 : 0}`).join('|') +
+      projects.map((p) => `${p.name}:${p.label || ''}:${p.count}:${p.accent}:${p.urgent ? 1 : 0}`).join('|') +
       `~${activeName}~` +
-      hidden.map((p) => `${p.name}:${p.count}`).join('|') +
+      hidden.map((p) => `${p.name}:${p.label || ''}:${p.count}`).join('|') +
       `~${folded.length}`
     if (this._last.legend === signature) return
     this._last.legend = signature
@@ -527,11 +536,12 @@ export class Hud {
       const b = document.createElement('button')
       b.type = 'button'
       b.className = 'repo'
-      b.title = `${p.count} thread${p.count === 1 ? '' : 's'} in ${p.name}`
+      const shown = p.label || p.name
+      b.title = `${p.count} thread${p.count === 1 ? '' : 's'} in ${shown}` + (shown === p.name ? '' : ` (${p.name})`)
       b.setAttribute('aria-pressed', String(p.name === activeName))
       b.innerHTML =
         `<i class="swatch" style="background:${hex(p.accent)};color:${hex(p.accent)}"></i>` +
-        `<span class="n">${escapeHtml(p.name)}</span>` +
+        `<span class="n">${escapeHtml(shown)}</span>` +
         (p.urgent ? '<i class="alarm"></i>' : '') +
         `<span class="count">${p.count}</span>`
       b.addEventListener('click', () => this.actions.pickProject?.(p.name))
@@ -551,12 +561,12 @@ export class Hud {
       row.className = 'repo hidden-repo'
       row.innerHTML =
         `<i class="swatch" style="background:${hex(accent)};color:${hex(accent)}"></i>` +
-        `<span class="n">${escapeHtml(p.name)}</span>` +
+        `<span class="n">${escapeHtml(p.label || p.name)}</span>` +
         `<span class="count">${p.count}</span>`
       const show = document.createElement('button')
       show.type = 'button'
       show.className = 'btn ghost show-repo'
-      show.title = `Show ${p.name} on the map again`
+      show.title = `Show ${p.label || p.name} on the map again`
       show.textContent = 'Show'
       show.addEventListener('click', () => this.actions.unhideProject?.(p.name))
       row.appendChild(show)
@@ -598,6 +608,36 @@ export class Hud {
   }
 
   /**
+   * Swap the open repo's name for an input. Enter or leaving the field commits, Escape
+   * abandons, and an empty value puts the folder's own name back — so there is no separate
+   * "reset" control to find, just the field you are already in.
+   */
+  startRename() {
+    if (!this.project || this._renaming) return
+    this._renaming = this.project.name
+    const input = this.$('#rename-input')
+    input.value = this.project.label || this.project.name
+    input.placeholder = this.project.name
+    this.$('.side .name').hidden = true
+    input.hidden = false
+    input.focus()
+    input.select()
+  }
+
+  _endRename(commit) {
+    const name = this._renaming
+    if (!name) return
+    // Cleared first: committing hides the input, and hiding a focused input fires `blur`,
+    // which would otherwise re-enter here and commit a second time.
+    this._renaming = null
+    const input = this.$('#rename-input')
+    const value = input.value
+    input.hidden = true
+    this.$('.side .name').hidden = false
+    if (commit) this.actions.renameProject?.(name, value)
+  }
+
+  /**
    * The project sidebar: what a zone is, and the things you can do to the *repo* rather
    * than to one thread in it. Opened by clicking a zone, its name plate, its legend chip,
    * or any astronaut standing on it.
@@ -616,8 +656,10 @@ export class Hud {
     // The minute is part of the signature because `ago()` is: without it a repo where
     // nothing is happening keeps whatever "4m ago" it was first drawn with, for as long as
     // you leave the panel open.
+    // Switching to a different repo abandons a rename in progress; a poll on the same one must not.
+    if (this._renaming && this._renaming !== project.name) this._endRename(false)
     const signature =
-      `${project.name}~${project.path}~${project.accent}~${project.selectedId}~${Math.floor(Date.now() / 60000)}~` +
+      `${project.name}~${project.label || ''}~${project.path}~${project.accent}~${project.selectedId}~${Math.floor(Date.now() / 60000)}~` +
       project.threads.map((t) => `${t.id}:${t.status}:${t.title}:${t.lastActivityAt}`).join('|')
     panel.classList.add('drilled')
     if (this._last.project === signature) return
@@ -626,7 +668,11 @@ export class Hud {
     const swatch = this.$('.side .who .swatch')
     swatch.style.background = hex(project.accent)
     swatch.style.color = hex(project.accent) // the halo is `currentColor`
-    this.$('.side .name').textContent = project.name
+    const shown = project.label || project.name
+    const nameEl = this.$('.side .name')
+    nameEl.textContent = shown
+    // A relabelled repo says what it really is on hover; the panel is the one place that can.
+    nameEl.title = shown === project.name ? 'Double-click to rename' : `Folder name: ${project.name} — double-click to rename`
     const path = this.$('.side .path')
     path.textContent = project.path ? shortPath(project.path) : 'folder unknown'
     path.title = project.path || ''
@@ -1170,8 +1216,10 @@ const TEMPLATE = `
         <i class="swatch"></i>
         <div class="text">
           <div class="name"></div>
+          <input type="text" class="rename-input" id="rename-input" maxlength="40" spellcheck="false" autocomplete="off" hidden />
           <div class="path"></div>
         </div>
+        <button class="btn icon ghost" id="btn-rename-project" title="Rename this repo on the map — only what the colony calls it, nothing on disk changes">${ICON.pencil}</button>
         <button class="btn icon ghost" id="btn-locate" title="Fly to this zone">${ICON.locate}</button>
       </div>
       <div class="project-actions">

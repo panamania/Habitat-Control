@@ -99,6 +99,36 @@ test('a stale save is refused with the disk state, not silently applied', async 
   })
 })
 
+test('repo labels round-trip through the colony file, and junk in them is dropped on the way', async () => {
+  await withServer(async ({ call, put }) => {
+    const saved = await put({
+      labels: {
+        good: '  My   Repo ',
+        empty: '   ',
+        notAString: 42,
+        nested: { no: 'way' },
+        long: 'x'.repeat(500),
+        multi: 'line\none',
+      },
+    })
+    assert.equal(saved.status, 200)
+    const { labels } = await (await call('/api/state')).json()
+    assert.equal(labels.good, 'My Repo')
+    assert.equal(labels.multi, 'line one')
+    assert.equal(labels.long.length, 80)
+    assert.ok(!('empty' in labels) && !('notAString' in labels) && !('nested' in labels))
+  })
+})
+
+test('a colony file from before labels existed reads back with an empty label map', async () => {
+  await withServer(async ({ call, dir }) => {
+    await fsp.writeFile(path.join(dir, 'colony.json'), JSON.stringify({ version: 2, archived: ['x'], updatedAt: 1 }))
+    const state = await (await call('/api/state')).json()
+    assert.deepEqual(state.labels, {})
+    assert.deepEqual(state.archived, ['x'])
+  })
+})
+
 test('a save with no base is allowed, so curl and a fresh install both work', async () => {
   await withServer(async ({ put }) => {
     assert.equal((await put({ archived: ['first'] })).status, 200)

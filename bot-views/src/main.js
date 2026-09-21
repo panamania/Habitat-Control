@@ -21,6 +21,12 @@ import {
   subscribeInvocation,
 } from './game/api.js'
 import { hideProject, hiddenCatalog, unhideProject } from './game/hidden-projects.js'
+import { labelFor, setLabel } from './game/labels.js'
+
+/** What the colony calls a repo: the name you gave it, or the folder's own. */
+const displayName = (name) => labelFor(state.labels, name)
+/** Attach each catalog entry's display name, for the hidden/folded lists. */
+const withLabels = (list) => list.map((p) => ({ ...p, label: displayName(p.name) }))
 
 /**
  * Boot and the outer game loop.
@@ -50,7 +56,7 @@ const engine = new Engine(settings).mount(app)
 const rig = new CameraRig(engine.camera, engine.canvas, settings)
 const colony = new Colony(engine.scene, settings, engine.camera, engine.renderer)
 
-let state = { archived: [], archivedAt: {}, opened: [], plots: {}, seen: {}, hiddenProjects: [], viewedAt: {} }
+let state = { archived: [], archivedAt: {}, opened: [], plots: {}, seen: {}, hiddenProjects: [], labels: {}, viewedAt: {} }
 let threads = []
 /** Last legend built for the bottom bar, kept so the open zone's chip can light up between polls. */
 let legendProjects = []
@@ -152,7 +158,7 @@ const actions = {
     try {
       const harness = harnessForProject(name)
       await newSession(folder, harness)
-      hud.toast(`New thread in ${name} — opening ${harnessLabel(harness)}`)
+      hud.toast(`New thread in ${displayName(name)} — opening ${harnessLabel(harness)}`)
       // It lands as an astronaut walking down the ramp, once it has a record to scan.
       setTimeout(poll, 6000)
     } catch (err) {
@@ -206,6 +212,21 @@ const actions = {
     hud.toast(`Marked ${thread.title.slice(0, 40)} as viewed`)
   },
 
+  /**
+   * Rename a repo on the map. Colony-only — the folder, its threads and its harness are
+   * untouched — and an empty name (or the folder's own) puts the original back.
+   */
+  renameProject: (name, text) => {
+    if (!name) return
+    const before = displayName(name)
+    state.labels = setLabel(state.labels || {}, name, text)
+    if (displayName(name) === before) return
+    colony.setLabels(state.labels)
+    queueSave()
+    applyThreads(threads)
+    hud.toast(displayName(name) === name ? `Back to ${name}` : `Now calling it ${displayName(name)}`)
+  },
+
   hideProject: () => {
     const name = selectedProject
     if (!name) return
@@ -218,7 +239,7 @@ const actions = {
     }
     selectedProject = null
     applyThreads(threads)
-    hud.toast(`Hidden ${name} — still in your harness, gone from the colony`)
+    hud.toast(`Hidden ${displayName(name)} — still in your harness, gone from the colony`)
   },
 
   unhideProject: (name) => {
@@ -226,7 +247,7 @@ const actions = {
     state.hiddenProjects = unhideProject(state.hiddenProjects || [], name)
     queueSave()
     applyThreads(threads)
-    hud.toast(`Showing ${name} again`)
+    hud.toast(`Showing ${displayName(name)} again`)
   },
 
   copyProjectPath: async () => {
@@ -276,7 +297,7 @@ const actions = {
     const folded = [...(colony.dormantProjects || [])].filter((n) => !foldedBefore.has(n))
     hud.toast(
       folded.length
-        ? `Archived — ${folded.join(', ')} ${folded.length === 1 ? 'is' : 'are'} all quiet now, folded off the map`
+        ? `Archived — ${folded.map(displayName).join(', ')} ${folded.length === 1 ? 'is' : 'are'} all quiet now, folded off the map`
         : 'Archived — heading home'
     )
     colony.ship.ping()
@@ -475,10 +496,10 @@ function pathForProject(name) {
 
 /** Push the open zone's current contents at the sidebar. Closes it if the zone is gone. */
 function syncProject() {
-  const hidden = hiddenCatalog(state.hiddenProjects || [], threads)
+  const hidden = withLabels(hiddenCatalog(state.hiddenProjects || [], threads))
   // Folded-away repos are listed alongside the ones you hid by hand. Same principle: nothing
   // leaves the map without somewhere on screen saying where it went.
-  const folded = hiddenCatalog([...(colony.dormantProjects || [])], threads)
+  const folded = withLabels(hiddenCatalog([...(colony.dormantProjects || [])], threads))
   const plot = selectedProject ? colony.plots.get(selectedProject) : null
   if (!plot) {
     selectedProject = null
@@ -505,6 +526,7 @@ function syncProject() {
 
   hud.setProject({
     name: plot.name,
+    label: displayName(plot.name),
     accent: plot.accent,
     path: pathForProject(plot.name),
     threads: list,
@@ -734,6 +756,7 @@ function applyThreads(list) {
   legendProjects = colony.plotOrder
     .map((plot) => ({
       name: plot.name,
+      label: displayName(plot.name),
       accent: plot.accent,
       count: list.filter((t) => !t.archived && !archivedSet.has(t.id) && t.project === plot.name).length,
       urgent: colony.urgentPlots?.has(plot.id) ?? false,
@@ -784,6 +807,11 @@ function queueSave() {
       // another tab had written since this one loaded. Dropping it would leave this page
       // asserting a picture the file has already moved past, and the next save would fight.
       state = await saveState(state)
+      // A conflict merge can bring another tab's renames in with it.
+      if (JSON.stringify(state.labels || {}) !== JSON.stringify(colony.labels)) {
+        colony.setLabels(state.labels)
+        applyThreads(threads)
+      }
     } catch {
       /* the colony still runs; only the archive list is at risk, and it retries next time */
     }
@@ -800,8 +828,10 @@ async function boot() {
     fetchState()
       .then((s) => {
         state = s
-        // Before the first roster: zones come back to the ground they were on last time.
+        // Before the first roster: zones come back to the ground they were on last time,
+        // and wearing the names you gave them.
         colony.restoreLayout(state.plots)
+        colony.setLabels(state.labels)
         // And the settings, but only for a browser that has none of its own — an explicit
         // choice made here always outranks the file.
         if (!hasStoredSettings() && state.settings) settings.applyAll(state.settings)
