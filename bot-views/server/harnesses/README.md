@@ -116,6 +116,11 @@ Do not put a file handle, a class instance, or a secret in it.
   `/api/new-project` creates an empty folder for a brand-new hex space when asked to — see
   DECISIONS.md — but that's the server, not an adapter, and it's still never a write into a
   harness's own records.)
+  The one deliberate exception is the optional `invokeAgent(ref, { prompt, onChunk })` +
+  `canInvoke` on a thread: the Ask box in the thread card. Claude Code implements it by
+  running `claude -p --resume <session>` in the thread's folder, so the turn is appended to
+  that thread's own transcript through the CLI itself — the adapter never edits the files.
+  It runs headless, so tools needing approval are denied, not granted.
 - **Never run anything out of another application's bundle.** Not to read from it, not to
   execute it. Only files under the user's own home directory. Opening a thread goes through a
   URL the OS resolves, or a command the user already has on `PATH`.

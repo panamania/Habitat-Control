@@ -682,6 +682,12 @@ body {
   margin-top: 6px;
 }
 
+/* `display: flex` above outranks the UA's [hidden] rule, so without this the box showed on
+   every card — including threads no adapter can invoke. */
+.thread-pop .ask[hidden] {
+  display: none;
+}
+
 .thread-pop .ask input {
   flex: 1;
   min-width: 0;
