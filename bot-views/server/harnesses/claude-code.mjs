@@ -575,6 +575,7 @@ async function invokeAgent(ref, { prompt, onChunk } = {}) {
 
     let output = ''
     let failure = ''
+    let finalText = ''
     let stderr = ''
     let buffer = ''
     let settled = false
@@ -589,6 +590,11 @@ async function invokeAgent(ref, { prompt, onChunk } = {}) {
       finish({ ok: false, error: 'The agent took too long to answer and was stopped.' })
     }, INVOKE_TIMEOUT_MS)
 
+    const emit = (text) => {
+      const piece = output ? `\n${text}` : text
+      output += piece
+      onChunk?.(piece)
+    }
     const handle = (line) => {
       let event
       try {
@@ -597,14 +603,19 @@ async function invokeAgent(ref, { prompt, onChunk } = {}) {
         return
       }
       if (event.type === 'assistant') {
-        const text = firstText(event.message?.content)
-        if (text) {
-          const piece = output ? `\n\n${text}` : text
-          output += piece
-          onChunk?.(piece)
+        // An agent working through tools says nothing in words for minutes. Showing each call
+        // as it happens is the difference between "running" and "stuck" in the card.
+        const content = event.message?.content
+        for (const part of Array.isArray(content) ? content : []) {
+          if (part?.type === 'text' && part.text?.trim()) emit(part.text)
+          else if (part?.type === 'tool_use' && part.name) emit(`▸ ${part.name}`)
         }
-      } else if (event.type === 'result' && (event.is_error || event.subtype?.startsWith('error'))) {
-        failure = (typeof event.result === 'string' && event.result) || event.subtype || 'The agent reported an error'
+      } else if (event.type === 'result') {
+        if (event.is_error || event.subtype?.startsWith('error')) {
+          failure = (typeof event.result === 'string' && event.result) || event.subtype || 'The agent reported an error'
+        } else if (typeof event.result === 'string' && event.result.trim()) {
+          finalText = event.result
+        }
       }
     }
 
@@ -628,7 +639,11 @@ async function invokeAgent(ref, { prompt, onChunk } = {}) {
       if (buffer.trim()) handle(buffer.trim())
       if (failure) finish({ ok: false, error: failure })
       else if (code !== 0) finish({ ok: false, error: stderr.trim() || `claude exited with code ${code}` })
-      else finish({ ok: true, output, runRef: { cliSessionId } })
+      else {
+        // Only tool calls streamed — the result line still carries the answer.
+        if (finalText && !output.includes(finalText)) emit(finalText)
+        finish({ ok: true, output, runRef: { cliSessionId } })
+      }
     })
 
     child.stdin.on('error', () => {})
