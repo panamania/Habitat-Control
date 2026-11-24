@@ -318,3 +318,43 @@ test('a queued invoke moves through running to done over SSE, streaming a real c
     agent.close()
   }
 })
+
+// ── claude-code adapter: resumes the thread's own session ────────────────────────────────
+
+test('claude-code invokeAgent resumes the session headlessly and relays the reply', async () => {
+  const { default: claudeCode } = await import('../server/harnesses/claude-code.mjs')
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'habitat-control-fakeclaude-'))
+  const win = process.platform === 'win32'
+  // A stand-in `claude`: echoes the stdin prompt and its own flags back as stream-json.
+  await fsp.writeFile(
+    path.join(dir, 'fake.mjs'),
+    `let p=''; process.stdin.setEncoding('utf8'); process.stdin.on('data',d=>p+=d); process.stdin.on('end',()=>{
+       const say=(t)=>console.log(JSON.stringify({type:'assistant',message:{content:[{type:'text',text:t}]}}));
+       say('args:'+process.argv.slice(2).join(' ')); say('prompt:'+p);
+       console.log(JSON.stringify({type:'result',is_error:false,result:'ok'})) })`
+  )
+  const shim = win ? 'claude.cmd' : 'claude'
+  await fsp.writeFile(
+    path.join(dir, shim),
+    win ? `@"${process.execPath}" "%~dp0fake.mjs" %*\r\n` : `#!/bin/sh\nexec "${process.execPath}" "$(dirname "$0")/fake.mjs" "$@"\n`,
+    { mode: 0o755 }
+  )
+  const oldPath = process.env.PATH
+  process.env.PATH = `${dir}${path.delimiter}${oldPath}`
+  try {
+    const sid = '11111111-2222-3333-4444-555555555555'
+    const chunks = []
+    const res = await claudeCode.invokeAgent({ cliSessionId: sid, cwd: dir }, { prompt: 'hello there; echo "$HOME"', onChunk: (c) => chunks.push(c) })
+    assert.equal(res.ok, true)
+    assert.match(res.output, new RegExp(`args:-p --resume ${sid} `))
+    // The prompt travels on stdin untouched — never through the shell command line.
+    assert.match(res.output, /prompt:hello there; echo "\$HOME"/)
+    assert.equal(chunks.join(''), res.output)
+
+    assert.equal((await claudeCode.invokeAgent({ cliSessionId: 'not-a-uuid', cwd: dir }, { prompt: 'x' })).ok, false)
+    assert.equal((await claudeCode.invokeAgent({ cliSessionId: sid, cwd: path.join(dir, 'gone') }, { prompt: 'x' })).ok, false)
+  } finally {
+    process.env.PATH = oldPath
+    await fsp.rm(dir, { recursive: true, force: true })
+  }
+})

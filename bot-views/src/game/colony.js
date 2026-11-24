@@ -20,6 +20,7 @@ import { MAX_AGENT_CAP } from '../core/settings.js'
 import { Particles } from '../agents/particles.js'
 import { Navigation } from '../agents/navigation.js'
 import { liveThreadsForColony } from './hidden-projects.js'
+import { labelFor } from './labels.js'
 
 /**
  * The colony: everything that turns a list of agent threads into a place.
@@ -122,6 +123,8 @@ export class Colony {
 
     this.plots = new Map()
     this.plotOrder = []
+    /** Repo display names, by project name. Plots stay keyed on the real name; only the plate differs. */
+    this.labels = {}
     /**
      * Where every zone sits, kept across polls *and* across the departures of the threads
      * that made it: a repo whose last session you archive comes back to the same ground
@@ -461,10 +464,7 @@ export class Colony {
       this.plots.set(name, plot)
       this.plotGroup.add(plot.group)
 
-      const label = createLabel(name, accent)
-      label.position.set(plot.labelAnchor.x, 3.2, plot.labelAnchor.z)
-      plot.label = label
-      this.labelGroup.add(label)
+      this._attachPlate(plot)
     })
 
     this.plotOrder = [...this.plots.values()]
@@ -905,6 +905,33 @@ export class Colony {
   setUiVisible(visible) {
     this.uiVisible = visible
     this._syncLabels()
+  }
+
+  /** Draw a plot's name plate from its current display name. */
+  _attachPlate(plot) {
+    const text = labelFor(this.labels, plot.name)
+    const label = createLabel(text, plot.accent)
+    label.position.set(plot.labelAnchor.x, 3.2, plot.labelAnchor.z)
+    plot.label = label
+    plot.labelText = text
+    this.labelGroup.add(label)
+  }
+
+  /**
+   * Adopt a new set of repo display names. Only the plates whose text actually changed are
+   * redrawn — a plate is a canvas texture, and redrawing all of them because one repo was
+   * renamed would be paying for every zone to fix one.
+   */
+  setLabels(labels) {
+    this.labels = labels || {}
+    for (const plot of this.plots.values()) {
+      if (plot.labelText === labelFor(this.labels, plot.name)) continue
+      if (plot.label) {
+        this.labelGroup.remove(plot.label)
+        plot.label.userData.dispose?.()
+      }
+      this._attachPlate(plot)
+    }
   }
 
   _syncLabels() {

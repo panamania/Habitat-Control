@@ -19,13 +19,16 @@
 // GET /api/invocations/:id/stream.
 
 import { randomUUID } from 'node:crypto';
-import { PLATFORMS } from './index.mjs';
+// Every adapter that can be invoked — local harnesses (Claude Code resumes its own session) as
+// well as the cloud platforms. harnesses/index.mjs imports platforms/index.mjs, never this file,
+// so there is no cycle.
+import { HARNESSES } from '../harnesses/index.mjs';
 import { getZoneForKey, isHighStakes } from './zonesStore.mjs';
 import { appendInvocationLog } from './auditLog.mjs';
 import { createInvocation, setStatus, appendOutput, setRunRef, setError, getInvocation } from './invocationStore.mjs';
 import { publish } from './invocationBus.mjs';
 
-const adaptersById = new Map(PLATFORMS.map((p) => [p.id, p]));
+const adaptersById = new Map(HARNESSES.map((p) => [p.id, p]));
 
 export async function invokeAgent({ platformId, agentIdentifier, ref, prompt, confirmed, requestedBy }) {
   const adapter = adaptersById.get(platformId);

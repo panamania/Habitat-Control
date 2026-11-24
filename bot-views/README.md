@@ -221,6 +221,14 @@ browser makes without touching layout, so following a walking astronaut costs no
   that flag.
 - **Hide** takes a whole repo off the map without touching a single thread. It comes back from
   the list at the foot of the sidebar, onto the same ground it left.
+- **Rename** (the pencil beside the repo's name, or double-click the name) changes what the
+  colony *calls* a repo — on the name plate over its zone, in the sidebar list, in the panel
+  header and in toasts. Enter or clicking away saves, `Esc` cancels, and clearing the field puts
+  the folder's own name back. It is display-only, like Hide: the folder, its threads and every
+  harness keep the real name, and the zone stays keyed on it. Labels live in `data/colony.json`
+  (`labels`), up to 40 characters, and hovering a renamed repo in the list shows the real name.
+  Like Hide, it is keyed on the folder's name, so a second checkout of the same repo turning
+  `foo` into `1/foo` leaves the old label behind.
 
 **Quiet repos fold away** by default: a repo where every thread has been silent for three days
 comes off the map, which on a machine with a few harnesses and a lot of checkouts is most of

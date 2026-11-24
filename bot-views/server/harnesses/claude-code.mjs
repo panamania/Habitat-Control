@@ -17,6 +17,7 @@ import fsp from 'node:fs/promises'
 import { existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
+import { spawn } from 'node:child_process'
 import { exists, findExecutable, jsonLines, listDirs, listFiles, num, readHead, readTail } from '../lib/fsutil.mjs'
 
 const HOME = os.homedir()
@@ -333,6 +334,8 @@ function toThread(t) {
   return {
     ...rest,
     canOpen: isDesktopId(desktopSessionId) || isCliId(cliSessionId),
+    // Invoking resumes the CLI session, so it needs the CLI's own session id and its transcript.
+    canInvoke: isCliId(cliSessionId) && Boolean(t.hasTranscript),
     // The cwd rides along because resuming from a terminal has to happen in the folder the
     // session ran in — the worktree, not the repo root.
     ref: { desktopSessionId, desktopSessionIds, cliSessionId, cwd: t.cwd || '' },
@@ -530,6 +533,124 @@ async function newSession(dir) {
   return { ok: true, url, command }
 }
 
+/** A headless turn that has not finished in this long is killed rather than left to hang. */
+const INVOKE_TIMEOUT_MS = 10 * 60 * 1000
+
+/**
+ * Send a prompt to an existing thread: `claude -p --resume <session>` in the folder the session
+ * ran in, the reply streamed back through `onChunk` as each assistant message lands.
+ *
+ * This is the one place the adapter writes — the turn is appended to the thread's own
+ * transcript, which is the point (the reply shows up in the thread). It runs headless, so a
+ * tool that needs an approval prompt is denied rather than waited on; nothing here widens the
+ * session's permissions.
+ *
+ * The prompt goes in on stdin, never on the command line: on Windows the `claude` shim is a
+ * .cmd file that only spawns through a shell, and a shell is exactly where user text must not
+ * be. Everything on the command line is a fixed flag or a pattern-checked UUID.
+ */
+async function invokeAgent(ref, { prompt, onChunk } = {}) {
+  const { cliSessionId, cwd } = ref || {}
+  if (!isCliId(cliSessionId)) return { ok: false, error: 'This thread has no resumable Claude Code session.' }
+  if (typeof prompt !== 'string' || !prompt.trim()) return { ok: false, error: 'Nothing to send.' }
+  const dir = typeof cwd === 'string' && cwd && (await exists(cwd)) ? cwd : ''
+  if (!dir) return { ok: false, error: `That thread's folder is gone${cwd ? ` (${cwd})` : ''}.` }
+
+  const win = process.platform === 'win32'
+  const bin = win ? 'claude' : (await cliBinary()) || 'claude'
+  const args = ['-p', '--resume', cliSessionId, '--output-format', 'stream-json', '--verbose']
+
+  return new Promise((resolve) => {
+    let child
+    try {
+      // Windows needs a shell for the .cmd shim, and Node warns on args-plus-shell, so it gets
+      // one fixed command string instead. Safe: only flags and a UUID checked by `isCliId`.
+      child = win
+        ? spawn([bin, ...args].join(' '), { cwd: dir, shell: true, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
+        : spawn(bin, args, { cwd: dir, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
+    } catch (err) {
+      resolve({ ok: false, error: err.message })
+      return
+    }
+
+    let output = ''
+    let failure = ''
+    let finalText = ''
+    let stderr = ''
+    let buffer = ''
+    let settled = false
+    const finish = (result) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve(result)
+    }
+    const timer = setTimeout(() => {
+      child.kill()
+      finish({ ok: false, error: 'The agent took too long to answer and was stopped.' })
+    }, INVOKE_TIMEOUT_MS)
+
+    const emit = (text) => {
+      const piece = output ? `\n${text}` : text
+      output += piece
+      onChunk?.(piece)
+    }
+    const handle = (line) => {
+      let event
+      try {
+        event = JSON.parse(line)
+      } catch {
+        return
+      }
+      if (event.type === 'assistant') {
+        // An agent working through tools says nothing in words for minutes. Showing each call
+        // as it happens is the difference between "running" and "stuck" in the card.
+        const content = event.message?.content
+        for (const part of Array.isArray(content) ? content : []) {
+          if (part?.type === 'text' && part.text?.trim()) emit(part.text)
+          else if (part?.type === 'tool_use' && part.name) emit(`▸ ${part.name}`)
+        }
+      } else if (event.type === 'result') {
+        if (event.is_error || event.subtype?.startsWith('error')) {
+          failure = (typeof event.result === 'string' && event.result) || event.subtype || 'The agent reported an error'
+        } else if (typeof event.result === 'string' && event.result.trim()) {
+          finalText = event.result
+        }
+      }
+    }
+
+    child.stdout.setEncoding('utf8')
+    child.stdout.on('data', (data) => {
+      buffer += data
+      let nl
+      while ((nl = buffer.indexOf('\n')) >= 0) {
+        handle(buffer.slice(0, nl).trim())
+        buffer = buffer.slice(nl + 1)
+      }
+    })
+    child.stderr.setEncoding('utf8')
+    child.stderr.on('data', (data) => {
+      stderr = (stderr + data).slice(-2000)
+    })
+    child.on('error', (err) =>
+      finish({ ok: false, error: err.code === 'ENOENT' ? 'The `claude` CLI is not installed or not on PATH.' : err.message })
+    )
+    child.on('close', (code) => {
+      if (buffer.trim()) handle(buffer.trim())
+      if (failure) finish({ ok: false, error: failure })
+      else if (code !== 0) finish({ ok: false, error: stderr.trim() || `claude exited with code ${code}` })
+      else {
+        // Only tool calls streamed — the result line still carries the answer.
+        if (finalText && !output.includes(finalText)) emit(finalText)
+        finish({ ok: true, output, runRef: { cliSessionId } })
+      }
+    })
+
+    child.stdin.on('error', () => {})
+    child.stdin.end(prompt)
+  })
+}
+
 export default {
   id: 'claude-code',
   name: 'Claude Code',
@@ -538,5 +659,6 @@ export default {
   scanThreads,
   openThread,
   newSession,
+  invokeAgent,
   paths: { DESKTOP_SESSIONS, CLI_PROJECTS, CLI_LIVE },
 }
