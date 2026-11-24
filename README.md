@@ -1,83 +1,69 @@
-# Habitat Control — cross-platform agent adapters
+# Habitat Control
 
-Four `server/platforms/*.mjs` files that plug into Habitat Control's existing
-harness contract (`id / name / detect / scanThreads / openThread /
-newSession`, documented in `server/harnesses/README.md`) so the colony
-renders agents running on AWS, Azure, GCP, and self-hosted Kubernetes
-instead of local Claude Code / Codex / Cursor sessions. `scan.mjs`,
-`api.mjs`, and everything under `src/` are unchanged — that's the whole
-point of the seam Habitat Control already has.
+Your agent threads, as a colony you can reach into.
 
-## Install
+Every coding-agent thread on your machine becomes a small astronaut on a hex-tile moon. Each repo
+claims a plot of ground and the astronauts build on it. When one needs you, it stops and holds a
+`?` over its head. Habitat Control is a fork of
+[Bot Crossing](https://github.com/Station-Sciences/bot-crossing) by Jarren Rocks, which does all
+of that. This fork adds the part where you can act on what you see.
 
+## What this fork adds
+
+- **Ask an agent from its card.** Click an astronaut, type a question, and the answer streams back
+  while the thread card shows what the agent is doing, tool by tool. Works for resumable Claude
+  Code threads and for agents on AWS Bedrock and Kubernetes.
+- **Agents beyond your laptop.** AWS Bedrock Agents and self-hosted Kubernetes agents show up as
+  harnesses next to the local ones. One zone is one deployed agent.
+- **A confirmation step for risky zones.** Zones can be marked high-stakes (trading and banking
+  start that way), and an invocation there needs an explicit confirmation before anything runs.
+- **Found a new hex space.** The `+` beside Repos creates an empty folder and opens a fresh Claude
+  Code session in it. The plot appears as soon as the session does.
+- **Rename plots.** Give a repo a display name without touching anything on disk.
+
+Everything else, including the map layout, the astronauts and the harness adapters, is Bot
+Crossing's work. The colony is still read from your harnesses' own files, on your own machine.
+
+## Run it
+
+```bash
+cd bot-views
+npm install
+npm run dev
 ```
-cd server/platforms
-npm install @aws-sdk/client-bedrock-agent @aws-sdk/client-bedrock-agent-runtime \
-            @azure/identity @azure/monitor-query \
-            google-auth-library \
-            @kubernetes/client-node
-```
 
-## Wire it in
+Needs Node 22.13 or newer. `npm test` runs the suite. It starts with zero cloud credentials: AWS
+and Kubernetes simply show as not detected until you set their environment variables (the headers
+of `bot-views/server/platforms/aws-bedrock.mjs` and `k8s-agents.mjs` list them).
 
-In `server/harnesses/index.mjs` (or wherever `scan.mjs` imports its source
-list from):
+## What is real and what is a sketch
 
-```js
-import { HARNESSES } from './harnesses/index.mjs'
-import { PLATFORMS } from './platforms/index.mjs'
-export const ALL_SOURCES = [...HARNESSES, ...PLATFORMS]
-```
+- **Local harnesses** (Claude Code, Codex, Cursor) work as in Bot Crossing.
+- **AWS Bedrock** is checked against the installed SDK. Invoking an agent needs an
+  agent-to-alias map you maintain yourself (`AWS_BEDROCK_AGENT_ALIASES`).
+- **Kubernetes** is the one to treat as a starting point. It relies on a pod-labeling convention
+  (`agent-colony/*`) that nothing writes for you yet.
+- **Azure and GCP** adapters are not included.
+- **Deployment** as an in-cluster service behind a tunnel is described in the architecture doc but
+  not built. Today this runs as a single localhost process, like the original.
 
-## Environment variables
+## Writes and trust
 
-| Adapter | Vars |
-|---|---|
-| AWS Bedrock | `AWS_REGION`, plus whatever your normal AWS SDK credential chain needs (profile, IAM role, env keys) |
-| Azure AI Foundry | `AZURE_LOG_ANALYTICS_WORKSPACE_ID`, `AZURE_AI_FOUNDRY_PROJECT_ENDPOINT`, `AZURE_AI_FOUNDRY_PORTAL_URL` |
-| GCP Vertex | `GCP_PROJECT_ID`, `GCP_LOCATION`, `GCP_AGENT_ENGINE_IDS` (comma-separated) |
-| Kubernetes | `K8S_AGENT_NAMESPACE`, `K8S_AGENT_LABEL_SELECTOR` |
+Watching the colony never writes to a harness. The two exceptions are things you ask for: Ask on
+a Claude Code thread resumes that session through the `claude` CLI, so it adds to that thread, and
+the `+` button creates a new project folder. See [ADR-001](ADR-001-trust-model.md) for the trust
+model.
 
-Use least-privilege, **read-only** credentials for all four — this is a
-viewer, same as the original tool's "never writes" philosophy. IAM
-read-only role for Bedrock, a reader role assignment for the Log Analytics
-workspace, a Viewer role on the Vertex project, a Kubernetes Role scoped to
-`get`/`list` on pods in one namespace.
+## Where to read more
 
-## Zone strategy
+| | |
+| --- | --- |
+| [`bot-views/README.md`](bot-views/README.md) | The full project README: harnesses, layout, rendering, settings |
+| [`bot-views/INTEGRATION_NOTES.md`](bot-views/INTEGRATION_NOTES.md) | What this fork changed, and what is deliberately not done |
+| [`HABITAT_CONTROL_ARCHITECTURE.md`](HABITAT_CONTROL_ARCHITECTURE.md) | The spec this fork is being brought in line with |
+| [`SPEC.md`](SPEC.md), [`SPRINT_PLAN.md`](SPRINT_PLAN.md) | Scope and plan |
 
-Each adapter sets `project` to `<platform>:<agent-or-engine-name>` (e.g.
-`aws:claims-triage-agent`, `k8s:invoice-parser`). That's what claims a hex
-zone in Habitat Control's existing layout logic, so **one zone = one deployed
-agent**, regardless of which hyperscaler runs it — your whole fleet spreads
-across the map by agent identity, not by cloud vendor. Astronauts within a
-zone are individual sessions/runs/invocations of that agent.
+## Credit and licence
 
-## The three honest caveats, up front
-
-- **AWS**: `ListSessions` returns every session in the account, not scoped
-  to one agent. Tag sessions with the agent id at creation time
-  (`sessionMetadata`) or every session lands in one `aws:unassigned` zone.
-  If you're on Bedrock AgentCore rather than classic Agents-for-Bedrock,
-  this adapter's API calls are the wrong ones — AgentCore's control plane
-  (`ListAgentRuntimes`) is a different shape entirely.
-- **Azure**: the Assistants-compatible API has no "list every thread"
-  endpoint by design — threads are only reachable by ID. This adapter reads
-  run telemetry out of Log Analytics instead, which means it returns
-  nothing until diagnostic export to a workspace is turned on for the
-  Foundry project, and the KQL query's field names need to match whatever
-  your diagnostic setting actually exports.
-- **Kubernetes**: there's no universal "agent" concept in the Kubernetes
-  API, so this adapter invents a labeling convention
-  (`agent-colony/agent-name`, `agent-colony/status`) that something in your
-  stack has to actually write. It's the adapter most worth treating as a
-  sketch rather than a finished implementation.
-
-## Polling, not local files
-
-`cache.mjs` wraps each adapter's fetch in a 15–30s TTL cache so
-`scanThreads()` never blocks on a live network call and never fires more
-than one refresh at a time — that's the network equivalent of the mtime
-caching the original Claude Code adapter does for a 12MB local transcript.
-Widen the TTLs if you're watching a lot of engines/sessions and start
-hitting rate limits.
+Built on [Bot Crossing](https://github.com/Station-Sciences/bot-crossing) by
+[Jarren Rocks](https://jarren.rocks), MIT licensed. See [`bot-views/LICENSE`](bot-views/LICENSE).
